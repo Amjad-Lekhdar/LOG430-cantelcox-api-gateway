@@ -1,0 +1,8 @@
+services:
+  api-gateway:
+    build:
+      context: .
+    container_name: cantelcox-api-gateway
+    network_mode: host
+    env_file:
+      - .env
