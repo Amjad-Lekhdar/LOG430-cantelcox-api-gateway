@@ -21,7 +21,7 @@ Le mode réseau `host` permet au conteneur gateway d'utiliser la connectivité r
 | --- | --- |
 | `identity-service` | `http://100.83.57.43:8020` |
 | `order-service` | `http://100.108.225.1:8030` |
-| `catalog-service` | `http://100.95.65.46:8010` |
+| `catalog-service` | `http://100.95.65.46:8040` |
 | `customers-service` | À configurer |
 | `billing-service` | À configurer |
 | `audit-service` | À configurer |

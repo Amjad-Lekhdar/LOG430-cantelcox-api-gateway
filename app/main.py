@@ -41,6 +41,13 @@ HOP_BY_HOP_HEADERS = {
     "host",
 }
 
+INVALID_AUTHORIZATION_HEADERS = {
+    "bearer",
+    "bearer undefined",
+    "bearer null",
+    "bearer none",
+}
+
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
@@ -91,11 +98,7 @@ async def proxy_v1(service: str, request: Request, path: str = "") -> Response:
     if request.query_params:
         upstream_url = f"{upstream_url}?{urlencode(request.query_params.multi_items())}"
 
-    headers = {
-        key: value
-        for key, value in request.headers.items()
-        if key.lower() not in HOP_BY_HOP_HEADERS
-    }
+    headers = _filter_request_headers(dict(request.headers.items()))
 
     upstream_request = UrlRequest(
         upstream_url,
@@ -140,3 +143,25 @@ def _filter_response_headers(headers: dict[str, str]) -> dict[str, str]:
         for key, value in headers.items()
         if key.lower() not in HOP_BY_HOP_HEADERS
     }
+
+
+def _filter_request_headers(headers: dict[str, str]) -> dict[str, str]:
+    filtered_headers = {
+        key: value
+        for key, value in headers.items()
+        if key.lower() not in HOP_BY_HOP_HEADERS
+    }
+
+    authorization_header = next(
+        (
+            key
+            for key, value in filtered_headers.items()
+            if key.lower() == "authorization"
+            and value.strip().lower() in INVALID_AUTHORIZATION_HEADERS
+        ),
+        None,
+    )
+    if authorization_header is not None:
+        del filtered_headers[authorization_header]
+
+    return filtered_headers

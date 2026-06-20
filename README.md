@@ -29,11 +29,11 @@ GET    /routes
 /v1/users/*      -> identity-service
 /v1/auth/*       -> identity-service
 /v1/orders/*     -> order-service
+/v1/catalog/*    -> catalog-service
 
-/v1/catalog/*    -> bss-core
-/v1/customers/*  -> bss-core
-/v1/billing/*    -> bss-core
-/v1/audit/*      -> bss-core
+/v1/customers/*  -> customers-service (à configurer)
+/v1/billing/*    -> billing-service (à configurer)
+/v1/audit/*      -> audit-service (à configurer)
 ```
 
 ## Health checks
@@ -50,8 +50,8 @@ curl -i http://127.0.0.1:8020/health
 # order-service
 curl -i http://127.0.0.1:8030/health
 
-# bss-core
-curl -i http://127.0.0.1:8010/health
+# catalog-service
+curl -i http://127.0.0.1:8040/health
 ```
 
 Tailnet/LXC services:
@@ -62,6 +62,9 @@ curl -i http://100.83.57.43:8020/health
 
 # order-service
 curl -i http://100.108.225.1:8030/health
+
+# catalog-service
+curl -i http://100.95.65.46:8040/health
 ```
 
 Gateway route table:
@@ -78,7 +81,10 @@ By default, the gateway expects the services to run on the same machine:
 ```text
 IDENTITY_SERVICE_URL=http://127.0.0.1:8020
 ORDER_SERVICE_URL=http://127.0.0.1:8030
-BSS_CORE_URL=http://127.0.0.1:8010
+CATALOG_SERVICE_URL=http://127.0.0.1:8040
+CUSTOMERS_SERVICE_URL=
+BILLING_SERVICE_URL=
+AUDIT_SERVICE_URL=
 ```
 
 When services run in LXC/VM machines on the Tailnet, start the gateway with the
@@ -87,7 +93,7 @@ machine IPs:
 ```bash
 IDENTITY_SERVICE_URL=http://100.83.57.43:8020 \
 ORDER_SERVICE_URL=http://100.108.225.1:8030 \
-BSS_CORE_URL=http://127.0.0.1:8010 \
+CATALOG_SERVICE_URL=http://100.95.65.46:8040 \
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -95,6 +101,7 @@ Current Tailnet machines:
 
 ```text
 identity-service  100.83.57.43
+catalog-service   100.95.65.46
 observability     100.87.177.66
 order-service     100.108.225.1
 ```
@@ -105,7 +112,10 @@ inside the same Docker network:
 ```text
 IDENTITY_SERVICE_URL=http://identity-service:8020
 ORDER_SERVICE_URL=http://order-service:8030
-BSS_CORE_URL=http://bss-core:8010
+CATALOG_SERVICE_URL=http://catalog-service:8040
+CUSTOMERS_SERVICE_URL=
+BILLING_SERVICE_URL=
+AUDIT_SERVICE_URL=
 ```
 
 ## Connectivity test

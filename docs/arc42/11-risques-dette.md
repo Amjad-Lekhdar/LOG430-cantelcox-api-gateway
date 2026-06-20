@@ -14,7 +14,6 @@
 ## Dette technique
 
 - Les ADR 0001 à 0005 sont encore peu documentés.
-- Le README contient encore des références historiques à `BSS_CORE_URL` et au dossier `services/api-gateway`.
 - Les routes clients, facturation et audit sont prêtes mais leurs services ne sont pas encore branchés.
 - Les tests automatisés du gateway ne sont pas présents dans ce dépôt.
 
