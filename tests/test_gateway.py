@@ -1,52 +1,11 @@
+import asyncio
 import json
-import socket
-import threading
-import time
-from http.server import BaseHTTPRequestHandler
-from http.server import ThreadingHTTPServer
-from urllib.error import HTTPError
-from urllib.request import Request
-from urllib.request import urlopen
+from urllib.error import URLError
 
 import pytest
-import uvicorn
+from starlette.requests import Request
 
 import app.main as gateway
-
-
-@pytest.fixture(scope="session")
-def gateway_url():
-    port = _free_port()
-    server = uvicorn.Server(
-        uvicorn.Config(
-            gateway.app,
-            host="127.0.0.1",
-            port=port,
-            log_level="warning",
-        )
-    )
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-
-    base_url = f"http://127.0.0.1:{port}"
-    _wait_until_ready(f"{base_url}/health")
-
-    yield base_url
-
-    server.should_exit = True
-    thread.join(timeout=5)
-
-
-@pytest.fixture
-def mock_upstream_url():
-    server = ThreadingHTTPServer(("127.0.0.1", _free_port()), MockUpstreamHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-
-    yield f"http://127.0.0.1:{server.server_port}"
-
-    server.shutdown()
-    thread.join(timeout=5)
 
 
 @pytest.fixture
@@ -57,124 +16,125 @@ def restore_route_targets():
     gateway.ROUTE_TARGETS.update(original)
 
 
-def test_health_returns_ok(gateway_url):
-    response = _request(f"{gateway_url}/health")
-
-    assert response["status"] == 200
-    assert response["headers"]["x-trace-id"]
-    assert response["json"] == {"status": "ok", "service": "api-gateway"}
+def test_health_returns_ok():
+    assert gateway.health_check() == {"status": "ok", "service": "api-gateway"}
 
 
-def test_routes_returns_configured_upstreams(gateway_url):
-    response = _request(f"{gateway_url}/routes")
+def test_routes_returns_configured_upstreams():
+    routes = gateway.list_routes()
 
-    assert response["status"] == 200
-    assert "/v1/users/*" in response["json"]
-    assert "/v1/orders/*" in response["json"]
-    assert "/v1/catalog/*" in response["json"]
-
-
-def test_unknown_route_returns_404(gateway_url):
-    response = _request(f"{gateway_url}/v1/unknown/resource")
-
-    assert response["status"] == 404
-    assert response["json"]["detail"] == "No upstream service configured for /v1/unknown"
+    assert "/v1/users/*" in routes
+    assert "/v1/orders/*" in routes
+    assert "/v1/catalog/*" in routes
 
 
-def test_known_unconfigured_route_returns_503(gateway_url, restore_route_targets):
+def test_unknown_route_returns_404():
+    response = _call_proxy("unknown", path="resource")
+
+    assert response.status_code == 404
+    assert _json_body(response)["detail"] == "No upstream service configured for /v1/unknown"
+
+
+def test_known_unconfigured_route_returns_503(restore_route_targets):
     gateway.ROUTE_TARGETS["catalog"] = ""
 
-    response = _request(f"{gateway_url}/v1/catalog/plans")
+    response = _call_proxy("catalog", path="plans")
 
-    assert response["status"] == 503
-    assert response["json"]["detail"] == "No upstream service configured for /v1/catalog"
-
-
-def test_unavailable_upstream_returns_502(gateway_url, restore_route_targets):
-    gateway.ROUTE_TARGETS["catalog"] = f"http://127.0.0.1:{_free_port()}"
-
-    response = _request(f"{gateway_url}/v1/catalog/plans")
-
-    assert response["status"] == 502
-    assert response["json"]["detail"] == "Upstream service unavailable"
-    assert response["json"]["upstream"].startswith("http://127.0.0.1:")
+    assert response.status_code == 503
+    assert _json_body(response)["detail"] == "No upstream service configured for /v1/catalog"
 
 
-def test_proxy_forwards_request_to_mock_upstream(
-    gateway_url,
-    mock_upstream_url,
-    restore_route_targets,
-):
-    gateway.ROUTE_TARGETS["orders"] = mock_upstream_url
+def test_unavailable_upstream_returns_502(monkeypatch, restore_route_targets):
+    gateway.ROUTE_TARGETS["catalog"] = "http://catalog.example.test"
 
-    response = _request(
-        f"{gateway_url}/v1/orders/test-resource?foo=bar",
-        headers={"X-Trace-Id": "test-trace-id"},
+    def unavailable_upstream(*args, **kwargs):
+        raise URLError("connection refused")
+
+    monkeypatch.setattr(gateway, "urlopen", unavailable_upstream)
+
+    response = _call_proxy("catalog", path="plans")
+
+    assert response.status_code == 502
+    assert _json_body(response)["detail"] == "Upstream service unavailable"
+    assert _json_body(response)["upstream"] == "http://catalog.example.test"
+
+
+def test_proxy_forwards_request_to_mock_upstream(monkeypatch, restore_route_targets):
+    gateway.ROUTE_TARGETS["orders"] = "http://orders.example.test"
+
+    def mock_upstream(upstream_request, timeout):
+        assert timeout == 15
+        assert upstream_request.full_url == "http://orders.example.test/v1/orders/test-resource?foo=bar"
+        assert upstream_request.get_method() == "GET"
+        assert upstream_request.headers["X-trace-id"] == "test-trace-id"
+        return FakeUpstreamResponse(
+            status=200,
+            headers={"content-type": "application/json", "x-upstream": "mock"},
+            body={
+                "method": upstream_request.get_method(),
+                "url": upstream_request.full_url,
+                "trace_id": upstream_request.headers["X-trace-id"],
+            },
+        )
+
+    monkeypatch.setattr(gateway, "urlopen", mock_upstream)
+
+    response = _call_proxy(
+        "orders",
+        path="test-resource",
+        query_string=b"foo=bar",
+        headers=[(b"x-trace-id", b"test-trace-id")],
     )
 
-    assert response["status"] == 200
-    assert response["headers"]["x-trace-id"] == "test-trace-id"
-    assert response["json"] == {
+    assert response.status_code == 200
+    assert response.headers["x-upstream"] == "mock"
+    assert _json_body(response) == {
         "method": "GET",
-        "path": "/v1/orders/test-resource",
-        "query": "foo=bar",
+        "url": "http://orders.example.test/v1/orders/test-resource?foo=bar",
         "trace_id": "test-trace-id",
     }
 
 
-class MockUpstreamHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        body = json.dumps(
-            {
-                "method": "GET",
-                "path": self.path.split("?", 1)[0],
-                "query": self.path.split("?", 1)[1] if "?" in self.path else "",
-                "trace_id": self.headers.get("X-Trace-Id"),
-            }
-        ).encode()
+class FakeUpstreamResponse:
+    def __init__(self, status, headers, body):
+        self.status = status
+        self.headers = headers
+        self._body = json.dumps(body).encode()
 
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+    def __enter__(self):
+        return self
 
-    def log_message(self, format, *args):
-        return
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def read(self):
+        return self._body
 
 
-def _request(url, headers=None):
-    request = Request(url, headers=headers or {})
-    try:
-        with urlopen(request, timeout=5) as response:
-            return _response_payload(response)
-    except HTTPError as exc:
-        return _response_payload(exc)
+def _call_proxy(service, path="", query_string=b"", headers=None):
+    request = _request("GET", f"/v1/{service}/{path}".rstrip("/"), query_string, headers)
+    request.state.trace_id = request.headers.get("x-trace-id", "test-generated-trace-id")
+    return asyncio.run(gateway.proxy_v1(service=service, request=request, path=path))
 
 
-def _response_payload(response):
-    body = response.read()
-    headers = {key.lower(): value for key, value in response.headers.items()}
-    return {
-        "status": response.status,
-        "headers": headers,
-        "body": body,
-        "json": json.loads(body.decode()) if body else None,
-    }
+def _request(method, path, query_string=b"", headers=None):
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    return Request(
+        {
+            "type": "http",
+            "method": method,
+            "path": path,
+            "query_string": query_string,
+            "headers": headers or [],
+            "client": ("127.0.0.1", 12345),
+            "server": ("testserver", 80),
+            "scheme": "http",
+        },
+        receive,
+    )
 
 
-def _wait_until_ready(url):
-    deadline = time.monotonic() + 10
-    while time.monotonic() < deadline:
-        try:
-            if _request(url)["status"] == 200:
-                return
-        except Exception:
-            time.sleep(0.1)
-    raise RuntimeError(f"Server did not become ready: {url}")
-
-
-def _free_port():
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
+def _json_body(response):
+    return json.loads(response.body.decode())

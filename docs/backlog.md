@@ -25,7 +25,7 @@ Derniere mise a jour: 23 juin 2026.
 | B-01 | ADR et decisions d'architecture | P0 | En cours | ADR complets, traçables au cahier de charge |
 | B-02 | Documentation Arc42 et 4+1 | P0 | En cours | Documentation finale coherente avec l'etat reel du systeme |
 | B-03 | Cas d'utilisation Must | P0 | Fait | 5 UC Must decrits et relies aux services |
-| B-04 | Tests automatises du gateway | P0 | A faire | Tests unitaires/integration pour les routes critiques |
+| B-04 | Tests automatises du gateway | P0 | Fait | Tests unitaires pour les routes critiques du gateway |
 | B-05 | Observabilite | P0 | En cours | Gateway instrumente; Prometheus/Grafana a raccorder et captures a produire |
 | B-06 | Docker Compose complet | P0 | En cours | Gateway, services, DB, observabilite et healthchecks lancables |
 | B-07 | Performance et charge | P1 | A faire | Mesures k6/JMeter/Artillery et comparaison des variantes |
@@ -120,18 +120,20 @@ Preuve: section 1.2 de `docs/Gabarit_LOG430_Phase1_Architecture_v3_1.md`.
 ## B-04 - Ajouter les tests automatises du gateway
 
 Priorite: P0  
-Statut: A faire
+Statut: Fait
 
 ### Taches
 
-- [ ] Ajouter une configuration de test Python.
-- [ ] Tester `GET /health`.
-- [ ] Tester `GET /routes`.
-- [ ] Tester une route inconnue avec reponse `404`.
-- [ ] Tester une route connue mais non configuree avec reponse `503`.
-- [ ] Tester un upstream indisponible avec reponse `502`.
-- [ ] Tester le proxy vers un service mock.
-- [ ] Ajouter la commande de test dans le README.
+- [x] Ajouter une configuration de test Python.
+- [x] Tester `GET /health`.
+- [x] Tester `GET /routes`.
+- [x] Tester une route inconnue avec reponse `404`.
+- [x] Tester une route connue mais non configuree avec reponse `503`.
+- [x] Tester un upstream indisponible avec reponse `502`.
+- [x] Tester le proxy vers un service mock.
+- [x] Ajouter la commande de test dans le README.
+
+Preuve: `tests/test_gateway.py`; validation locale `6 passed in 0.24s`.
 
 ### Criteres d'acceptation
 
