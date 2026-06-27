@@ -1,0 +1,68 @@
+@startdot billing-service-5-2
+digraph G {
+  graph [
+    label="Whitebox billing-service - Architecture hexagonale",
+    labelloc=t,
+    fontsize=18,
+    fontname="Arial",
+    bgcolor="white",
+    rankdir=LR,
+    splines=ortho,
+    nodesep=0.55,
+    ranksep=0.75
+  ];
+
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11, color="#111827"];
+  edge [fontname="Arial", fontsize=10, color="#A80036", arrowsize=0.75];
+
+  Interface [label="Interface Layer", fillcolor="#FEF3C7"];
+  Business [label="Business Layer", fillcolor="#DBEAFE"];
+  Infra [label="Infrastructure Layer", fillcolor="#FECACA"];
+
+  Gateway [label="API Gateway\nREST client", fillcolor="#FFF7ED"];
+  PaymentProvider [label="Payment Provider\nWebhook", fillcolor="#FFF7ED"];
+  BillingApi [label="BillingController\n/v1/billing/*", fillcolor="#DBEAFE"];
+  Webhook [label="PaymentWebhook", fillcolor="#DBEAFE"];
+
+  UseCases [label="Application Services\nGetUsage\nGetInvoice\nPayInvoice\nCloseBillingCycle", fillcolor="#E0F2FE"];
+  Domain [
+    label="Business Model\n\nBillingAccount\nUsageRecord\nInvoice\nPayment\n\nDependencies go inwards",
+    shape=polygon,
+    sides=6,
+    style=filled,
+    fillcolor="#FEF3C7",
+    color="#B91C1C",
+    width=3.2,
+    height=2.2
+  ];
+  Ports [label="Ports\nBillingRepository\nUsageProvider\nPaymentPort\nAuditPort", fillcolor="#F8FAFC"];
+
+  Repo [label="BillingRepository Adapter\nSQL", fillcolor="#DBEAFE"];
+  Usage [label="UsageProvider Adapter", fillcolor="#DBEAFE"];
+  Payment [label="PaymentGateway Adapter", fillcolor="#DBEAFE"];
+  Audit [label="AuditClient\nHTTP REST", fillcolor="#DBEAFE"];
+
+  Db [label="Billing DB", shape=cylinder, fillcolor="#E0F2FE"];
+  UsageSource [label="Usage/rating source", fillcolor="#F8FAFC"];
+  PaymentGw [label="Payment gateway", fillcolor="#F8FAFC"];
+  AuditSvc [label="audit-service", fillcolor="#F8FAFC"];
+
+  { rank=same; Interface; Business; Infra; }
+  Interface -> Business -> Infra [style=invis, weight=10];
+
+  Gateway -> BillingApi [label="usage / facture / paiement"];
+  PaymentProvider -> Webhook [label="confirmation"];
+  BillingApi -> UseCases;
+  Webhook -> UseCases;
+  UseCases -> Domain;
+  UseCases -> Ports;
+  Ports -> Repo [label="exactly-once"];
+  Ports -> Usage [label="collecte usage"];
+  Ports -> Payment [label="capture"];
+  Ports -> Audit [label="trace paiement"];
+  Repo -> Db;
+  Usage -> UsageSource;
+  Payment -> PaymentGw;
+  Audit -> AuditSvc;
+}
+@enddot

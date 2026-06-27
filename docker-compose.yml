@@ -6,3 +6,12 @@ services:
     network_mode: host
     env_file:
       - .env
+
+  catalog-load-balancer:
+    image: haproxy:3.0-alpine
+    container_name: cantelcox-catalog-lb
+    network_mode: host
+    profiles:
+      - load-balancing
+    volumes:
+      - ./infra/load-balancer/haproxy/catalog.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro

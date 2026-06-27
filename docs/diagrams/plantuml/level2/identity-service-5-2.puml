@@ -1,0 +1,63 @@
+@startdot identity-service-5-2
+digraph G {
+  graph [
+    label="Whitebox identity-service - Architecture hexagonale",
+    labelloc=t,
+    fontsize=18,
+    fontname="Arial",
+    bgcolor="white",
+    rankdir=LR,
+    splines=ortho,
+    nodesep=0.55,
+    ranksep=0.75
+  ];
+
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11, color="#111827"];
+  edge [fontname="Arial", fontsize=10, color="#A80036", arrowsize=0.75];
+
+  Interface [label="Interface Layer", fillcolor="#FEF3C7"];
+  Business [label="Business Layer", fillcolor="#DBEAFE"];
+  Infra [label="Infrastructure Layer", fillcolor="#FECACA"];
+
+  Gateway [label="API Gateway\nREST client", fillcolor="#FFF7ED"];
+  UserApi [label="UserController\n/v1/users/*", fillcolor="#DBEAFE"];
+  AuthApi [label="AuthController\n/v1/auth/*", fillcolor="#DBEAFE"];
+
+  UseCases [label="Application Services\nRegisterUser\nAuthenticate\nVerifyMfa", fillcolor="#E0F2FE"];
+  Domain [
+    label="Business Model\n\nUser\nIdentityProfile\nCredential\nMfaChallenge\n\nDependencies go inwards",
+    shape=polygon,
+    sides=6,
+    style=filled,
+    fillcolor="#FEF3C7",
+    color="#B91C1C",
+    width=3.1,
+    height=2.2
+  ];
+  Ports [label="Ports\nUserRepository\nMfaProvider\nAuditPort", fillcolor="#F8FAFC"];
+
+  UserRepo [label="UserRepository Adapter\nPostgreSQL", fillcolor="#DBEAFE"];
+  Otp [label="OTP/MFA Adapter\nEmail/SMS/Authenticator", fillcolor="#DBEAFE"];
+  Audit [label="AuditClient\nHTTP REST", fillcolor="#DBEAFE"];
+
+  Db [label="Identity DB", shape=cylinder, fillcolor="#E0F2FE"];
+  Provider [label="OTP/MFA Provider", fillcolor="#F8FAFC"];
+  AuditSvc [label="audit-service", fillcolor="#F8FAFC"];
+
+  { rank=same; Interface; Business; Infra; }
+  Interface -> Business -> Infra [style=invis, weight=10];
+
+  Gateway -> UserApi [label="gerer profil"];
+  Gateway -> AuthApi [label="auth / MFA"];
+  UserApi -> UseCases;
+  AuthApi -> UseCases;
+  UseCases -> Domain;
+  UseCases -> Ports;
+  Ports -> UserRepo [label="persiste"];
+  Ports -> Otp [label="envoie/verifie code"];
+  Ports -> Audit [label="trace auth"];
+  UserRepo -> Db;
+  Otp -> Provider;
+  Audit -> AuditSvc;
+}
+@enddot

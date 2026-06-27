@@ -7,7 +7,7 @@
 | URLs amont incorrectes | Routes en `502` ou `503` | `/routes` expose la configuration active | Ajouter des tests de connectivité automatisés |
 | Services futurs non disponibles | Certaines routes restent inutilisables | Variables vides et réponse `503` | Créer les services et renseigner les URLs |
 | Pas de découverte de services | Configuration manuelle fragile | `.env` centralisé pour le gateway | Évaluer DNS interne, service registry ou convention Tailnet |
-| Pas de métriques applicatives | Diagnostic limité | `/health` et Blackbox Exporter | Ajouter `/metrics` par service |
+| Métriques applicatives partielles | Diagnostic limité hors gateway | `/health`, Blackbox Exporter et `/metrics` gateway | Raccorder `/metrics` gateway dans Prometheus et ajouter `/metrics` par service |
 | Sécurité API incomplète | Accès potentiellement trop ouvert | CORS limité au développement local | Définir authentification, autorisation et rate limiting |
 | Proxy HTTP synchrone | Performance limitée sous forte charge | MVP simple | Évaluer `httpx` async et timeouts par service |
 

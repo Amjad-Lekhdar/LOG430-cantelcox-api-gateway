@@ -14,6 +14,10 @@
 - Les services existants sont accessibles via Tailnet:
   - `identity-service`: `100.83.57.43:8020`
   - `order-service`: `100.108.225.1:8030`
+  - `catalog-service`: `100.95.65.46:8040`
+  - `customers-service`: `100.99.167.126:8050`
+  - `billing-service`: `100.114.185.38:8060`
+  - `audit-service`: `100.94.161.70:8070`
   - `observability`: `100.87.177.66`
 - Le gateway doit pouvoir joindre les machines Tailnet depuis son environnement d'exécution.
 - Les URLs des services non encore créés restent configurables dans `.env`.
@@ -26,5 +30,5 @@
 
 ## Contraintes connues
 
-- Les métriques applicatives Prometheus ne sont pas encore exposées par les services.
+- Les métriques applicatives Prometheus sont exposées par le gateway sur `/metrics`; les autres services doivent encore être instrumentés ou raccordés progressivement.
 - Certaines routes sont préparées mais dépendent encore de la création des services amont correspondants.

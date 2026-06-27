@@ -1,0 +1,31 @@
+@startuml api-gateway-5-2
+title Whitebox API Gateway - Niveau 2
+
+top to bottom direction
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam rectangle {
+  RoundCorner 8
+}
+
+package "API Gateway" #DCFCE7 {
+  rectangle "Adapters d'entree\nFastAPI / HTTP" as In #BBF7D0
+  rectangle "Routage\nROUTE_TARGETS" as Routing #E0F2FE
+  rectangle "Proxy HTTP\npreserve methode, corps, query" as Proxy #E0F2FE
+  rectangle "Configuration\nSettings / .env" as Config #FEF3C7
+  rectangle "Gestion erreurs\n404 / 503 / 502" as Errors #FEE2E2
+  rectangle "Filtre headers\nhop-by-hop" as Headers #F1F5F9
+}
+
+In --> Routing : /v1/{service}
+Routing --> Config : lit URL amont
+Routing --> Proxy : cible service
+Proxy --> Headers : filtre requete/reponse
+Proxy --> Errors : indisponibilite
+
+rectangle "Services metier amont\nidentity, order, catalog, ..." as Upstream #E0F2FE
+Proxy --> Upstream : HTTP REST interne
+@enduml

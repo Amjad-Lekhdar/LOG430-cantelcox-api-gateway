@@ -16,6 +16,18 @@ Le projet utilise aussi des VM/LXC dans un contexte de laboratoire. L'équipe po
 
 Utiliser Tailscale pour relier les VM/LXC du laboratoire dans un réseau privé appelé Tailnet.
 
+Les adresses actuellement utilisées sont:
+
+| Service | Adresse Tailnet |
+| --- | --- |
+| `identity-service` | `100.83.57.43:8020` |
+| `order-service` | `100.108.225.1:8030` |
+| `catalog-service` | `100.95.65.46:8040` |
+| `customers-service` | `100.99.167.126:8050` |
+| `billing-service` | `100.114.185.38:8060` |
+| `audit-service` | `100.94.161.70:8070` |
+| `observability` | `100.87.177.66` |
+
 Chaque machine reçoit une adresse Tailnet stable, utilisée dans les variables d'environnement du gateway:
 
 - `IDENTITY_SERVICE_URL`

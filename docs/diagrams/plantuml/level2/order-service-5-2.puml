@@ -1,0 +1,75 @@
+@startdot order-service-5-2
+digraph G {
+  graph [
+    label="Whitebox order-service - Architecture hexagonale",
+    labelloc=t,
+    fontsize=18,
+    fontname="Arial",
+    bgcolor="white",
+    rankdir=LR,
+    splines=ortho,
+    nodesep=0.55,
+    ranksep=0.75
+  ];
+
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11, color="#111827"];
+  edge [fontname="Arial", fontsize=10, color="#A80036", arrowsize=0.75];
+
+  Interface [label="Interface Layer", fillcolor="#FEF3C7"];
+  Business [label="Business Layer", fillcolor="#DBEAFE"];
+  Infra [label="Infrastructure Layer", fillcolor="#FECACA"];
+
+  Gateway [label="API Gateway\nREST client", fillcolor="#FFF7ED"];
+  OrderApi [label="OrderController\n/v1/orders/*", fillcolor="#DBEAFE"];
+  ActivationApi [label="ActivationController", fillcolor="#DBEAFE"];
+
+  UseCases [label="Application Services\nPlaceOrder\nActivateLine\nGetOrder", fillcolor="#E0F2FE"];
+  Domain [
+    label="Business Model\n\nOrder\nOrderItem\nOrderStatus\nIdempotencyKey\n\nDependencies go inwards",
+    shape=polygon,
+    sides=6,
+    style=filled,
+    fillcolor="#FEF3C7",
+    color="#B91C1C",
+    width=3.2,
+    height=2.2
+  ];
+  Ports [label="Ports\nOrderRepository\nCatalogPort\nIdentityPort\nBillingPort\nAuditPort\nActivationPort", fillcolor="#F8FAFC"];
+
+  Repo [label="OrderRepository Adapter\nSQL", fillcolor="#DBEAFE"];
+  Catalog [label="CatalogClient\nHTTP REST", fillcolor="#DBEAFE"];
+  Identity [label="IdentityClient\nHTTP REST", fillcolor="#DBEAFE"];
+  Billing [label="BillingClient\nHTTP REST", fillcolor="#DBEAFE"];
+  Audit [label="AuditClient\nHTTP REST", fillcolor="#DBEAFE"];
+  Hlr [label="Activation Adapter\nHLR/HSS simule", fillcolor="#DBEAFE"];
+
+  Db [label="Orders DB", shape=cylinder, fillcolor="#E0F2FE"];
+  CatalogSvc [label="catalog-service", fillcolor="#F8FAFC"];
+  IdentitySvc [label="identity-service", fillcolor="#F8FAFC"];
+  BillingSvc [label="billing-service", fillcolor="#F8FAFC"];
+  AuditSvc [label="audit-service", fillcolor="#F8FAFC"];
+  Network [label="HLR/HSS simule", fillcolor="#F8FAFC"];
+
+  { rank=same; Interface; Business; Infra; }
+  Interface -> Business -> Infra [style=invis, weight=10];
+
+  Gateway -> OrderApi [label="creer commande"];
+  Gateway -> ActivationApi [label="activer ligne"];
+  OrderApi -> UseCases;
+  ActivationApi -> UseCases;
+  UseCases -> Domain;
+  UseCases -> Ports;
+  Ports -> Repo [label="persiste"];
+  Ports -> Catalog [label="verifie offre/prix"];
+  Ports -> Identity [label="valide client"];
+  Ports -> Billing [label="commande facturable"];
+  Ports -> Audit [label="trace"];
+  Ports -> Hlr [label="provisioning"];
+  Repo -> Db;
+  Catalog -> CatalogSvc;
+  Identity -> IdentitySvc;
+  Billing -> BillingSvc;
+  Audit -> AuditSvc;
+  Hlr -> Network;
+}
+@enddot

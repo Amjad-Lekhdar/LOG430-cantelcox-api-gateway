@@ -69,7 +69,7 @@ Dossier d’architecture — gabarit Arc42 + vues 4+1 + ADR
 
 [5. Vue des blocs de construction](#vue-des-blocs-de-construction)
 
-[5.1 Niveau 1 — Décomposition en services](#niveau-1-décomposition-en-services)
+[5.1 Niveau 1 — Whitebox du système global](#niveau-1-whitebox-du-système-global)
 
 [5.2 Niveau 2 — Structure interne d’un service (hexagonal)](#niveau-2-structure-interne-dun-service-hexagonal)
 
@@ -213,8 +213,6 @@ Tableau de navigation : où documenter chaque tâche du devoir. La matrice de tr
 
 # 1. Introduction et objectifs
 
-***Objectif Arc42 —** Présenter le système, ses objectifs métier essentiels, les objectifs de qualité prioritaires et les parties prenantes.*
-
 > **Repères de l’énoncé**
 >
 > **Tâches de l’énoncé :** 1.1 Clarifier le périmètre & cas d’utilisation Must.
@@ -280,7 +278,7 @@ Cochez (✓) le ou les domaines couverts par chaque UC, pour démontrer l’alig
 | UC-01 Inscription & identité | Abonné, service identité | Gateway disponible, `IDENTITY_SERVICE_URL` configuré | Le client appelle `/v1/users/*`; le gateway route vers `identity-service`; le service crée ou vérifie le profil | Route inconnue `404`, service non configuré `503`, service indisponible `502` | Profil client créé/vérifié; accès journalisable | Route gateway prête; logique métier dans service amont |
 | UC-02 Authentification & MFA | Abonné, service identité | Compte existant, route `/v1/auth/*` configurée | Le client initie l’authentification; le service identité valide les facteurs; le gateway relaie la réponse | MFA refusée ou expirée; service indisponible | Session ou jeton retourné par l’amont; opération sensible protégée | Route gateway prête; MFA non centralisé dans le gateway |
 | UC-03 Activation d’une ligne | Abonné/agent, service lignes/commandes | Client identifié, commande ou ligne admissible | Le client appelle une route d’activation via `/v1/orders/*` ou service lignes futur; l’amont active la ligne | Double soumission, fraude, HLR/HSS indisponible | Ligne active une seule fois; audit attendu | Routage commandes prêt; service lignes dédié à compléter |
-| UC-04 Consultation usage/factures | Abonné, service facturation/usage | Client authentifié, facturation disponible | Le client appelle `/v1/billing/*`; le gateway route vers le service facturation | `BILLING_SERVICE_URL` vide retourne `503` | Usage/factures consultables selon droits | Famille de route préparée, URL non configurée par défaut |
+| UC-04 Consultation usage/factures | Abonné, service facturation/usage | Client authentifié, facturation disponible | Le client appelle `/v1/billing/*`; le gateway route vers le service facturation | Service non configuré `503`; service indisponible `502` | Usage/factures consultables selon droits | Conteneur LXC et URL configurés; application métier à déployer |
 | UC-05 Prise de commande | Abonné/agent, service commandes, catalogue | Catalogue et service commande disponibles | Le client consulte `/v1/catalog/*`, puis soumet `/v1/orders/*`; le gateway relaie les appels | Offre inexistante, commande invalide, double soumission | Commande enregistrée; idempotence attendue côté service | Routes catalogue/commandes prêtes; idempotence métier à compléter |
 | UC-06 Paiement de facture | Abonné, service facturation, passerelle paiement | Facture ouverte, passerelle simulée disponible | Le client appelle `/v1/billing/*` pour payer; le service facturation orchestre le paiement | Paiement refusé, doublon, passerelle indisponible | Paiement appliqué une seule fois; audit requis | Route préparée; service/passerelle à compléter |
 | UC-07 Détection de fraude | Services métier, service audit/fraude | Événements métier disponibles | Les services publient ou appellent `/v1/audit/*` pour consigner les opérations sensibles | Suspicion SIM swap, usurpation, roaming anormal | Décision de blocage ou alerte; journal append-only | Route audit préparée; règles anti-fraude à compléter |
@@ -708,7 +706,7 @@ Must.
 
 **État actuel dans le dépôt**
 
-La route gateway `/v1/billing/*` est préparée, mais `BILLING_SERVICE_URL` est vide par défaut. Le gateway retournera `503` tant que le service facturation n’est pas configuré. La logique de consultation usage/factures doit être implémentée ou branchée dans `billing-service`.
+La route gateway `/v1/billing/*` est préparée et `BILLING_SERVICE_URL` pointe maintenant vers le conteneur LXC `100.114.185.38:8060`. Tant que l’application de facturation n’écoute pas sur ce port, le gateway retourne `502`. La logique de consultation usage/factures doit encore être implémentée ou déployée dans `billing-service`.
 
 ### UC-05 — Prise de commande
 
@@ -846,8 +844,6 @@ Les trois objectifs de qualité prioritaires (cibles NFR du cahier) :
 
 # 2. Contraintes d’architecture
 
-***Objectif Arc42 —** Recenser les contraintes techniques, réglementaires et organisationnelles qui limitent les choix d’architecture.*
-
 ## 2.1 Contraintes techniques
 
 | **Contrainte**          | **Description / impact**                                                        |
@@ -877,8 +873,6 @@ Conventions retenues dans le dépôt : documentation en français, ADR en Markdo
 
 # 3. Contexte et périmètre
 
-***Objectif Arc42 —** Délimiter le système vis-à-vis de ses partenaires (utilisateurs et systèmes externes) — contextes métier et technique — et cartographier le domaine (DDD).*
-
 > **Repères de l’énoncé**
 >
 > **Tâches de l’énoncé :** 1.2 Cartographier le domaine (DDD) ; 4.2 adapters externes simulés.
@@ -897,23 +891,23 @@ Conventions retenues dans le dépôt : documentation en français, ADR en Markdo
 
 ## 3.1 Contexte métier
 
-```text
-Frontend Expo / clients externes
-  |
-  | HTTP REST /v1
-  v
-CanTelcoX API Gateway
-  |-- /v1/users, /v1/auth ----> identity-service
-  |-- /v1/orders -------------> order-service
-  |-- /v1/catalog ------------> catalog-service
-  |-- /v1/customers ----------> customers-service (prévu)
-  |-- /v1/billing ------------> billing-service (prévu)
-  |-- /v1/audit --------------> audit-service (prévu)
-  |
-  +-- /health sondé par Prometheus Blackbox Exporter / Grafana
-```
-
 Le gateway est le système documenté dans ce dépôt. Il masque la localisation réelle des services, fournit une base URL stable au frontend et permet à l’exploitation de diagnostiquer rapidement les routes configurées via `/routes`.
+
+![Diagramme de contexte métier CanTelcoX API Gateway](diagrams/plantuml/contexte-metier-3-1.svg)
+
+*Figure 3.1 — Contexte métier du gateway. Source PlantUML : `docs/diagrams/plantuml/contexte-metier-3-1.puml`.*
+
+| **Partenaire** | **Direction** | **Protocole** | **Description** |
+|----------------|---------------|---------------|-----------------|
+| Frontend Expo | in | HTTPS / JSON | Application cliente qui consomme l’API REST `/v1` du gateway. |
+| `identity-service` | out | HTTP REST / JSON | Gestion des utilisateurs, authentification et MFA via `/v1/users/*` et `/v1/auth/*`. |
+| `order-service` | out | HTTP REST / JSON | Gestion des commandes et activations via `/v1/orders/*`. |
+| `catalog-service` | out | HTTP REST / JSON | Consultation du catalogue et des offres via `/v1/catalog/*`. |
+| `customers-service` | out | HTTP REST / JSON | Gestion des profils clients via `/v1/customers/*`. |
+| `billing-service` | out | HTTP REST / JSON | Consultation de l’usage, des factures et des paiements via `/v1/billing/*`. |
+| `audit-service` | out | HTTP REST / JSON | Journalisation des opérations sensibles via `/v1/audit/*`. |
+| Prometheus Blackbox Exporter | in | HTTP | Sonde l’endpoint `/health` du gateway pour l’observabilité. |
+| Opérateur exploitation | in | HTTPS / JSON | Consulte `/health` et `/routes` pour diagnostiquer l’état du gateway et sa configuration de routage. |
 
 ## 3.2 Contexte technique
 
@@ -960,8 +954,6 @@ Les relations sont volontairement dirigées des consommateurs vers les producteu
 **Blocs DDD à matérialiser dans le code :** Ubiquitous Language (mêmes noms d’entités dans la doc, les diagrammes et le code), Value Objects (ex. ligne de commande sans identité propre hors de son agrégat), Aggregates (cohérence transactionnelle via commit/rollback), Repositories (masquage de la persistance, ségrégation lecture/écriture).
 
 # 4. Stratégie de solution
-
-***Objectif Arc42 —** Résumer les décisions fondamentales : style architectural, découpage, technologies, atteinte des objectifs de qualité.*
 
 > **Repères de l’énoncé**
 >
@@ -1017,8 +1009,6 @@ Les TMF Open APIs peuvent inspirer la conception. Mapping indicatif :
 
 # 5. Vue des blocs de construction
 
-***Objectif Arc42 —** Décomposition statique du système : niveau 1 (services), niveau 2 (structure interne d’un service), modèle de domaine. Couvre les vues Logique et Développement de 4+1.*
-
 > **Repères de l’énoncé**
 >
 > **Tâches de l’énoncé :** 1.2 modèle de domaine ; 2.1 couches & dépendances ; 4.1 domaine ; 4.2 ports/adapters.
@@ -1037,55 +1027,126 @@ Les TMF Open APIs peuvent inspirer la conception. Mapping indicatif :
 >
 > ☐ Séparation nette domaine ↔ infra ; pas de logique métier dans les controllers.
 
-## 5.1 Niveau 1 — Décomposition en services
+## 5.1 Niveau 1 — Whitebox du système global
 
-```text
-Clients
-  |
-  v
-CanTelcoX API Gateway (FastAPI, port 8000)
-  |
-  +--> identity-service  (/v1/users/*, /v1/auth/*)
-  +--> order-service     (/v1/orders/*)
-  +--> catalog-service   (/v1/catalog/*)
-  +--> customers-service (/v1/customers/*, prévu)
-  +--> billing-service   (/v1/billing/*, prévu)
-  +--> audit-service     (/v1/audit/*, prévu)
-```
+Cette vue décompose le système en blocs principaux et précise, pour chacun, sa responsabilité et son interface principale. Le niveau 1 reste volontairement macroscopique : il montre les services visibles à l’échelle du système, sans détailler leur structure interne.
 
-Le gateway expose `/health`, `/routes` et un proxy générique `/v1/{service}/{path}`. Les services amont sont sélectionnés à partir du premier segment de route, puis adressés par URL configurée dans l’environnement.
+![Figure 5.1 — Diagramme de composants niveau 1 du système CanTelcoX](diagrams/plantuml/building-blocks-5-1.svg)
+
+La vue de niveau 1 décompose le système en une façade d’entrée unique, `CanTelcoX API Gateway`, et plusieurs services métier amont alignés sur les bounded contexts du domaine télécom. Le gateway est le seul bloc implémenté dans ce dépôt : il expose les routes publiques, résout le service cible à partir du segment `/v1/{service}`, puis relaie la requête HTTP vers l’URL amont configurée. Les services métier conservent la responsabilité de leurs règles, de leur persistance et de leurs contrats internes.
+
+Les dépendances sont dirigées du client vers le gateway, puis du gateway vers les services responsables. Aucun service métier ne dépend du gateway pour exécuter sa logique interne; le gateway agit comme adaptateur d’entrée et point de routage, pas comme orchestrateur métier.
+
+| Bloc | Responsabilité | Interface principale |
+|------|----------------|----------------------|
+| `CanTelcoX API Gateway` | Routage `/v1/*`, diagnostic `/health` et `/routes`, filtrage des headers hop-by-hop, gestion des erreurs de disponibilité amont (`404`, `503`, `502`) | HTTP REST public, port `8000` |
+| `identity-service` | Utilisateurs, authentification, MFA et identité numérique | HTTP REST interne via `/v1/users/*` et `/v1/auth/*`, port `8020` |
+| `order-service` | Commandes, demandes d’activation et idempotence métier | HTTP REST interne via `/v1/orders/*`, port `8030` |
+| `catalog-service` | Catalogue des offres, forfaits, options et règles d’éligibilité | HTTP REST interne via `/v1/catalog/*`, port `8040` |
+| `customers-service` | Client métier distinct de l’identité numérique | HTTP REST interne via `/v1/customers/*` ; service prévu, URL à configurer |
+| `billing-service` | Usage, factures, paiements et écritures de facturation | HTTP REST interne via `/v1/billing/*` ; service prévu, URL à configurer |
+| `audit-service` | Journalisation append-only, traces des opérations sensibles et support anti-fraude | HTTP REST interne via `/v1/audit/*` ; service prévu, URL à configurer |
+
+La configuration maintient le couplage faible entre le gateway et les services : `IDENTITY_SERVICE_URL`, `ORDER_SERVICE_URL`, `CATALOG_SERVICE_URL`, `CUSTOMERS_SERVICE_URL`, `BILLING_SERVICE_URL` et `AUDIT_SERVICE_URL` peuvent changer sans modifier le code applicatif. Quand une famille de routes est connue mais que son URL est vide, le gateway retourne `503`; quand l’URL existe mais que le service ne répond pas, il retourne `502`.
 
 ## 5.2 Niveau 2 — Structure interne d’un service (hexagonal)
 
-Structure interne du gateway :
+Le niveau 2 zoome sur les blocs critiques de la vue 5.1. Les services métier suivent une cible **hexagonale** : adapters d’entrée, couche application, domaine pur, adapters de sortie. Le gateway fait exception : il reste une façade technique de routage et ne contient pas de domaine métier.
 
-```text
-app/main.py
-  - FastAPI app
-  - Middleware CORS
-  - Table ROUTE_TARGETS
-  - Endpoints /health et /routes
-  - Proxy HTTP /v1/*
-  - Filtrage des headers hop-by-hop
+### 5.2.1 Whitebox de l’API Gateway
 
-app/core/config.py
-  - Settings Pydantic
-  - Variables d'environnement des services amont
-```
+![Figure 5.2.1 — Whitebox API Gateway](diagrams/plantuml/level2/api-gateway-5-2.svg)
 
-Pour les services métier, la cible architecturale reste hexagonale : contrôleurs REST en adapters entrants, cas d’utilisation en couche application, domaine sans dépendance framework, repositories/adapters pour la persistance et les systèmes externes simulés.
+*Source PlantUML : [`api-gateway-5-2.puml`](diagrams/plantuml/level2/api-gateway-5-2.puml).*
 
-## 5.3 Modèle de domaine
+- **Responsabilité** : exposer `/health`, `/routes` et `/v1/*`, résoudre la cible amont et relayer les requêtes.
+- **Ports primaires** : HTTP public FastAPI.
+- **Ports secondaires** : URLs `*_SERVICE_URL` vers les services métier.
+- **Invariant** : aucune règle métier ni persistance métier dans le gateway.
 
-Agrégats clés à modéliser (un diagramme par bounded context retenu) :
+### 5.2.2 Whitebox de `identity-service`
 
-| **Agrégat**     | **Entités / Value Objects** | **Invariants**                         |
-|-----------------|-----------------------------|----------------------------------------|
-| Profil abonné   | Client, identifiants, coordonnées, état de vérification | Identité vérifiée avant opérations sensibles |
-| Ligne / MSISDN  | Ligne mobile, MSISDN, statut, option de service | Unicité MSISDN, activation contrôlée |
-| Commande        | Commande, lignes de commande, statut, idempotency key | Une clé d’idempotence ne produit qu’un effet métier |
-| Forfait / Offre | Offre, forfait, option, prix, règles d’éligibilité | Offre active et compatible avec le profil/ligne |
-| Facture         | Facture, paiement, écriture comptable, période | Écriture de facturation exactly-once |
+![Figure 5.2.2 — Whitebox identity-service](diagrams/plantuml/level2/identity-service-5-2.svg)
+
+*Diagramme SVG : `diagrams/plantuml/level2/identity-service-5-2.svg`.*
+
+- **Domaine** : `User`, `IdentityProfile`, `Credential`, `MfaChallenge`.
+- **Ports primaires** : `UserController`, `AuthController`.
+- **Ports secondaires** : `UserRepository`, fournisseur OTP/MFA, `AuditClient`.
+- **Invariants métier** : identifiants uniques, MFA validé avant les opérations sensibles, tentatives d’authentification traçables.
+
+### 5.2.3 Whitebox de `order-service`
+
+![Figure 5.2.3 — Whitebox order-service](diagrams/plantuml/level2/order-service-5-2.svg)
+
+*Diagramme SVG : `diagrams/plantuml/level2/order-service-5-2.svg`.*
+
+- **Domaine** : `Order`, `OrderItem`, `IdempotencyKey`.
+- **Ports primaires** : `OrderController`, `ActivationController`.
+- **Ports secondaires** : `OrderRepository`, `CatalogClient`, `IdentityClient`, `BillingClient`, `AuditClient`, adapter HLR/HSS simulé.
+- **Invariants métier** : une clé d’idempotence ne crée qu’une commande logique, statut de commande contrôlé, offre vérifiée avant activation.
+
+### 5.2.4 Whitebox de `catalog-service`
+
+![Figure 5.2.4 — Whitebox catalog-service](diagrams/plantuml/level2/catalog-service-5-2.svg)
+
+*Diagramme SVG : `diagrams/plantuml/level2/catalog-service-5-2.svg`.*
+
+- **Domaine** : `Offer`, `Plan`, `Price`, `EligibilityRule`, `CatalogVersion`.
+- **Ports primaires** : `CatalogController`.
+- **Ports secondaires** : `OfferRepository`, cache catalogue, `AuditClient`.
+- **Invariants métier** : catalogue versionné, offre active pour être vendue, prix et règles d’éligibilité cohérents avec la version.
+
+### 5.2.5 Whitebox de `customers-service`
+
+![Figure 5.2.5 — Whitebox customers-service](diagrams/plantuml/level2/customers-service-5-2.svg)
+
+*Diagramme SVG : `diagrams/plantuml/level2/customers-service-5-2.svg`.*
+
+- **Domaine** : `Customer`, `ContactInfo`, `Address`, `Consent`.
+- **Ports primaires** : `CustomerController`.
+- **Ports secondaires** : `CustomerRepository`, `IdentityClient`, `AuditClient`.
+- **Invariants métier** : le client métier est distinct de l’identité numérique, tout changement sensible de profil est auditable.
+
+### 5.2.6 Whitebox de `billing-service`
+
+![Figure 5.2.6 — Whitebox billing-service](diagrams/plantuml/level2/billing-service-5-2.svg)
+
+*Diagramme SVG : `diagrams/plantuml/level2/billing-service-5-2.svg`.*
+
+- **Domaine** : `BillingAccount`, `UsageRecord`, `Invoice`, `Payment`.
+- **Ports primaires** : `BillingController`, `PaymentWebhook`.
+- **Ports secondaires** : `BillingRepository`, `UsageProvider`, passerelle de paiement, `AuditClient`.
+- **Invariants métier** : paiement appliqué une seule fois, facture rattachée à une période, écriture de facturation exactly-once.
+
+### 5.2.7 Whitebox de `audit-service`
+
+![Figure 5.2.7 — Whitebox audit-service](diagrams/plantuml/level2/audit-service-5-2.svg)
+
+*Diagramme SVG : `diagrams/plantuml/level2/audit-service-5-2.svg`.*
+
+- **Domaine** : `AuditEvent`, `Actor`, `RiskSignal`, `AppendOnlyLog`.
+- **Ports primaires** : `AuditController`, consommateur d’événements de domaine.
+- **Ports secondaires** : repository append-only, moteur de règles fraude, publication d’alertes.
+- **Invariants métier** : journal en insertion seule, horodatage et acteur obligatoires, événements sensibles conservés pour audit et fraude.
+
+## 5.3 Modèle de domaine (vue logique 4+1)
+
+Le diagramme suivant présente les principales abstractions du domaine CanTelcoX, indépendamment de l’implémentation technique. Il relie les agrégats métier utilisés par les services de la vue 5.2 : identité, client, lignes mobiles, catalogue, commandes, facturation et audit.
+
+![Figure 5.3 — Modèle de domaine CanTelcoX](diagrams/plantuml/domain-model-5-3.svg)
+
+*Source PlantUML : [`domain-model-5-3.puml`](diagrams/plantuml/domain-model-5-3.puml).*
+
+| **Agrégat racine** | **Entités / Value Objects principaux** | **Service responsable** | **Invariants métier** |
+|--------------------|----------------------------------------|-------------------------|------------------------|
+| `IdentityAccount` | `Credential`, MFA | `identity-service` | Identifiant unique; MFA requis pour les opérations sensibles; compte verrouillable après échecs répétés. |
+| `Customer` | `ContactInfo`, `Address`, `Consent` | `customers-service` | Client métier distinct de l’identité numérique; consentements et changements sensibles auditables. |
+| `MobileLine` | `MSISDN`, offre souscrite | `order-service` ou futur `line-service` | MSISDN unique; activation contrôlée; une ligne active référence une offre admissible. |
+| `Offer` | `Plan`, `Price`, `EligibilityRule`, version de catalogue | `catalog-service` | Offre active pour être vendue; prix et règles cohérents avec la version référencée par la commande. |
+| `Order` | `OrderItem`, `IdempotencyKey` | `order-service` | Une clé d’idempotence ne produit qu’un effet métier; une commande référence une offre versionnée. |
+| `Invoice` | `UsageRecord`, `Payment` | `billing-service` | Facture rattachée à une période; paiement appliqué une seule fois; écriture de facturation exactly-once. |
+| `AuditEvent` | `Actor`, `RiskSignal`, journal append-only | `audit-service` | Événement horodaté et associé à un acteur; insertion seule; opérations sensibles conservées pour audit et fraude. |
 
 ## 5.4 Organisation du code (vue Développement)
 
@@ -1106,8 +1167,6 @@ Les dépendances sont simples : `main.py` dépend de `settings`, mais le module 
 
 # 6. Vue d’exécution
 
-***Objectif Arc42 —** Comportement dynamique : interactions entre composants pour les scénarios clés. Couvre la vue Processus (C&C) de 4+1.*
-
 > **Repères de l’énoncé**
 >
 > **Tâches de l’énoncé :** 4.3 Exposer l’API REST publique (scénario bout-en-bout) ; 3.2 idempotence à l’exécution.
@@ -1127,22 +1186,24 @@ Les dépendances sont simples : `main.py` dépend de `settings`, mais le module 
 
 ## 6.1 Scénario bout-en-bout (E2E)
 
-Scénario E2E cible :
+Ce scénario nominal illustre le parcours principal attendu : inscription du client, validation MFA, consultation du catalogue, création d’une commande avec idempotence, activation/facturation, puis consultation de l’usage. Il montre la vue processus 4+1 : ordre des appels, synchronisation HTTP et responsabilités runtime.
 
-```text
-Client -> Gateway: POST /v1/users
-Gateway -> identity-service: POST /v1/users
-Client -> Gateway: POST /v1/auth/mfa
-Gateway -> identity-service: POST /v1/auth/mfa
-Client -> Gateway: POST /v1/orders
-Gateway -> order-service: POST /v1/orders
-Client -> Gateway: GET /v1/catalog/plans
-Gateway -> catalog-service: GET /v1/catalog/plans
-Client -> Gateway: GET /v1/billing/usage
-Gateway -> billing-service: GET /v1/billing/usage
-```
+![Figure 6.1 — Scénario E2E CanTelcoX, cas nominal](diagrams/plantuml/runtime-e2e-6-1.svg)
 
-État actuel : le gateway peut router ces familles de routes si les URLs amont sont configurées. Le scénario complet dépend encore de la disponibilité des endpoints métier dans les services amont.
+*Source PlantUML : [`runtime-e2e-6-1.puml`](diagrams/plantuml/runtime-e2e-6-1.puml).*
+
+**Préconditions :**
+
+- Les URLs `IDENTITY_SERVICE_URL`, `CATALOG_SERVICE_URL`, `ORDER_SERVICE_URL`, `BILLING_SERVICE_URL` et `AUDIT_SERVICE_URL` sont configurées.
+- Le client peut joindre l’API Gateway.
+- Les services amont exposent les endpoints métier illustrés.
+
+**Points d’attention runtime :**
+
+- Le gateway relaie les appels sans porter la logique métier.
+- `order-service` conserve la clé `Idempotency-Key` pour éviter une double création de commande.
+- Les opérations sensibles sont tracées par `audit-service`.
+- La consultation d’usage dépend de `billing-service`, qui reste à configurer dans le MVP actuel.
 
 ## 6.2 Authentification & MFA (UC-02)
 
@@ -1172,8 +1233,6 @@ order-service -> Gateway: même résultat logique, sans nouvelle commande
 Le gateway préserve les headers applicatifs, donc il peut transporter `Idempotency-Key`. La déduplication effective doit être implémentée et testée dans `order-service` et `billing-service`.
 
 # 7. Vue de déploiement
-
-***Objectif Arc42 —** Infrastructure technique : nœuds, conteneurs, répartition des artefacts. Couvre la vue Déploiement de 4+1.*
 
 > **Repères de l’énoncé**
 >
@@ -1208,10 +1267,14 @@ Tailnet / VM-LXC
   identity-service  http://100.83.57.43:8020
   order-service     http://100.108.225.1:8030
   catalog-service   http://100.95.65.46:8040
+  customers-service http://100.99.167.126:8050
+  billing-service   http://100.114.185.38:8060
+  audit-service     http://100.94.161.70:8070
   observability     http://100.87.177.66
 ```
 
 Le mode `host` permet au conteneur gateway d’utiliser la connectivité réseau de la machine hôte, notamment vers Tailscale/Tailnet.
+Les conteneurs `customers-service`, `billing-service` et `audit-service` sont maintenant présents sur le Tailnet; leurs applications restent à déployer et à démarrer sur les ports indiqués.
 
 ## 7.2 API Gateway
 
@@ -1226,11 +1289,19 @@ Le mode `host` permet au conteneur gateway d’utiliser la connectivité réseau
 
 ## 7.3 Load balancing & tolérance aux pannes
 
-Non implémenté dans le dépôt actuel. Le gateway route vers une URL par service. Pour couvrir l’exigence, ajouter un équilibreur en amont ou devant chaque service (`NGINX`, `HAProxy` ou `Traefik`), tester N = 1..4 instances, puis documenter le kill d’instance et les résultats au §10.6.
+Le load balancing est implémenté comme **patron d'infrastructure réplicable** et démontré sur `catalog-service`, choisi comme service pilote parce qu'il est principalement en lecture et se prête bien aux tests de charge. L'objectif n'est pas de dupliquer immédiatement HAProxy devant tous les services, mais de prouver le mécanisme exigé par le cahier : N = 1..4 instances, comparaison latence/RPS/erreurs/saturation et tolérance aux pannes par kill d'instance.
+
+Première tranche implémentée pour `catalog-service` avec HAProxy, sans modifier la logique applicative du gateway. Le gateway continue de router vers une URL par service; pour le catalogue, cette URL peut maintenant pointer vers `http://127.0.0.1:18040`, où HAProxy distribue les appels vers les instances `catalog-service`.
+
+Éléments ajoutés au dépôt :
+
+- `infra/load-balancer/haproxy/catalog.cfg` : frontend HAProxy sur `127.0.0.1:18040`, backend `catalog_backend`, stratégie `roundrobin`, health check `GET /health`.
+- `docker-compose.yml` : service `catalog-load-balancer` activable avec le profil Compose `load-balancing`.
+- `tests/load/catalog-through-gateway.js` : script k6 initial pour mesurer les appels catalogue via le gateway.
+
+Le backend HAProxy contient l’instance actuelle `100.95.65.46:8040` et des lignes préparées pour `catalog-2` à `catalog-4`. Les mesures N = 1..4, le kill d’instance en charge et les résultats chiffrés restent à produire au §10.6. Le même patron peut être appliqué aux autres services en ajoutant un backend HAProxy dédié et en remplaçant l'URL amont correspondante (`ORDER_SERVICE_URL`, `BILLING_SERVICE_URL`, etc.) par l'adresse du load balancer du service.
 
 # 8. Concepts transversaux
-
-***Objectif Arc42 —** Idées et mécanismes appliqués de façon transversale : persistance, intégrité, sécurité, observabilité, gestion d’erreurs, caching.*
 
 > **Repères de l’énoncé**
 >
@@ -1258,7 +1329,7 @@ Non implémenté dans le dépôt actuel. Le gateway route vers une URL par servi
 
 ## 8.1 Persistance & intégrité
 
-Le gateway ne possède pas de persistance métier. Il est stateless et lit sa configuration au démarrage via variables d’environnement. Les choix ORM/DAO, transactions, contraintes d’unicité et migrations doivent être documentés par service métier (`identity-service`, `order-service`, `catalog-service`, `billing-service`, `audit-service`). La stratégie cible est **database per service** afin d’éviter le couplage par base partagée.
+Le gateway ne possède pas de persistance métier. Il est stateless et lit sa configuration au démarrage via variables d’environnement. Les services métier utilisent chacun une base **PostgreSQL** dédiée (`identity-service`, `order-service`, `catalog-service`, `customers-service`, `billing-service`, `audit-service`). Les choix ORM/DAO, transactions, contraintes d’unicité et migrations doivent être documentés par service. La stratégie cible est **database per service** afin d’éviter le couplage par base partagée.
 
 ## 8.2 Idempotence (commandes & activations)
 
@@ -1294,20 +1365,18 @@ Le versionnement `/v1` est en place. Le gateway retourne `404` pour une famille 
 
 | **Golden Signal** | **Métrique**        | **Cible**                 |
 |-------------------|---------------------|---------------------------|
-| Latence           | P95 / P99           | P95 ≤ 500 ms              |
-| Trafic            | RPS                 | ≥ 600 ops/s               |
-| Erreurs           | Taux 4xx / 5xx      | À définir; seuil cible recommandé < 1 % hors tests négatifs |
-| Saturation        | CPU / RAM / threads | À définir; seuil cible recommandé < 80 % CPU/RAM en nominal |
+| Latence           | `api_gateway_http_request_duration_seconds` + `probe_duration_seconds` | P95 ≤ 500 ms |
+| Trafic            | `api_gateway_http_requests_total` | ≥ 600 ops/s |
+| Erreurs           | `api_gateway_http_requests_total{status=~"4..|5.."}` | Seuil cible recommandé < 1 % hors tests négatifs |
+| Saturation        | `api_gateway_http_requests_in_progress`, métriques `process_*`, Node Exporter | Seuil cible recommandé < 80 % CPU/RAM en nominal |
 
-Logs structurés + Prometheus + dashboards Grafana ; captures au §10.5.
+Le gateway expose maintenant `/metrics` au format Prometheus et journalise les requêtes en JSON avec `trace_id`, méthode, chemin, route, statut, durée et client. Le header `X-Trace-Id` est retourné au client et propagé vers le service amont. Les dashboards Grafana et les captures restent à finaliser au §10.5 dans la pile d'observabilité dédiée.
 
 ## 8.9 Caching
 
 Non implémenté dans le gateway actuel. Candidats : catalogue de forfaits (`/v1/catalog/*`) et lectures d’usage/factures (`/v1/billing/*`) si la fraîcheur métier le permet. Il faudra définir TTL, invalidation sur modification catalogue ou nouvelle écriture de facturation, puis mesurer les gains au §10.7.
 
 # 9. Décisions d’architecture (ADR)
-
-***Objectif Arc42 —** Consigner les décisions structurantes au format ADR (statut, contexte, décision, conséquences), chacune traçable à une exigence du cahier.*
 
 > **Repères de l’énoncé**
 >
@@ -1359,8 +1428,6 @@ Non implémenté dans le gateway actuel. Candidats : catalogue de forfaits (`/v1
 
 # 10. Exigences de qualité
 
-***Objectif Arc42 —** Arbre de qualité et scénarios de qualité concrets ; cibles NFR, stratégie de validation (tests) et résultats mesurés. Couvre la vue Scénarios de 4+1.*
-
 > **Repères de l’énoncé**
 >
 > **Tâches de l’énoncé :** 5.2 tests de charge ; 5.3 load balancing ; 5.4 caching ; 6.2 direct vs Gateway ; 7.1 stratégie de tests.
@@ -1386,7 +1453,7 @@ Non implémenté dans le gateway actuel. Candidats : catalogue de forfaits (`/v1
 | 1 | Déployabilité | Lancer le gateway rapidement en laboratoire | Dockerfile, Docker Compose, variables d’environnement |
 | 2 | Maintenabilité | Changer une URL amont sans modifier le code | `Settings` Pydantic et table de routage |
 | 3 | Disponibilité | Diagnostiquer un service indisponible | `/health`, `/routes`, erreurs `502/503` |
-| 4 | Observabilité | Suivre santé et signaux applicatifs | Blackbox Exporter existant; `/metrics` à ajouter |
+| 4 | Observabilité | Suivre santé et signaux applicatifs | Blackbox Exporter existant; `/metrics` gateway ajouté |
 | 5 | Sécurité/auditabilité | Protéger opérations sensibles | CORS local en place; auth/MFA/audit à finaliser |
 
 ## 10.2 Scénarios de qualité
@@ -1427,18 +1494,22 @@ Scénarios k6/JMeter/Artillery — stress progressif jusqu’au seuil de saturat
 | UC-02 — Authentification MFA | Non mesuré | Non mesuré | Non mesuré |
 | UC-08 — Facturation          | Non mesuré | Non mesuré | Non mesuré |
 
-Captures Grafana et courbes de charge à produire après instrumentation `/metrics` et campagne k6/JMeter/Artillery.
+Captures Grafana et courbes de charge à produire après raccordement de `/metrics` dans Prometheus et campagne k6/JMeter/Artillery.
 
 ## 10.6 Load balancing (N = 1..4) & tolérance aux pannes
 
-| **N instances** | **RPS**               | **P95 (ms)**          | **Erreurs**           | **Saturation**        |
-|-----------------|-----------------------|-----------------------|-----------------------|-----------------------|
-| 1               | Non mesuré | Non mesuré | Non mesuré | Non mesuré |
+Portée de démonstration : `catalog-service` comme service pilote. Ce choix couvre l'exigence mesurable N = 1..4 et évite de répliquer prématurément le même mécanisme sur tous les services tant que les endpoints métier ne sont pas stabilisés. Le patron reste réplicable service par service via HAProxy.
+
+| **N instances** | **RPS** | **P95 (ms)** | **Erreurs** | **Saturation** |
+|-----------------|---------|--------------|-------------|----------------|
+| 1               | 19,85 req/s | 9,91 | 0,00 % | Non mesurée |
 | 2               | Non mesuré | Non mesuré | Non mesuré | Non mesuré |
 | 3               | Non mesuré | Non mesuré | Non mesuré | Non mesuré |
 | 4               | Non mesuré | Non mesuré | Non mesuré | Non mesuré |
 
-*Tolérance aux pannes (kill d’instance en charge) : à démontrer après ajout du load balancer.*
+Mesure N = 1 réalisée via `k6 run tests/load/catalog-through-gateway.js` sur le trajet `client -> gateway -> HAProxy -> catalog-service`, avec 20 VUs pendant 1 minute, 1 200 requêtes, 100 % de checks réussis, P90 = 8,16 ms, P95 = 9,91 ms, maximum = 56,89 ms et 0 % d'erreurs HTTP.
+
+*Tolérance aux pannes (kill d’instance en charge) : à démontrer sur `catalog-service` après lancement des instances N = 2..4.*
 
 ## 10.7 Caching (on / off)
 
@@ -1456,19 +1527,15 @@ Captures Grafana et courbes de charge à produire après instrumentation `/metri
 
 # 11. Risques et dette technique
 
-***Objectif Arc42 —** Identifier les risques d’architecture connus et la dette technique, avec leurs mesures d’atténuation.*
-
 | **Risque / dette**                                          | **Impact**            | **Probabilité**       | **Atténuation**                   |
 |-------------------------------------------------------------|-----------------------|-----------------------|-----------------------------------|
 | Gateway comme point unique d’entrée | Indisponibilité des appels clients | Moyenne | Ajouter réplication/LB et healthchecks |
 | URLs amont incorrectes ou services absents | Routes en `502/503` | Élevée tant que les services sont incomplets | `/routes`, tests de connectivité automatisés, documentation `.env` |
-| Absence de métriques applicatives | Diagnostic limité | Moyenne | Ajouter `/metrics`, dashboards Grafana 4 Golden Signals |
+| Métriques applicatives incomplètes dans Grafana | Diagnostic limité | Moyenne | Raccorder `/metrics` dans Prometheus et compléter dashboards Grafana 4 Golden Signals |
 | Sécurité gateway incomplète | Accès API trop ouvert | Moyenne | Auth/JWT, rate limiting, validation des tokens, politiques CORS par environnement |
 | Données périmées en cache futur | Consultation incohérente | Moyenne | TTL courts, invalidation sur écriture, mesure cache on/off |
 
 # 12. Glossaire
-
-***Objectif Arc42 —** Définir le langage ubiquitaire (DDD) et les acronymes pour une compréhension commune.*
 
 > **Repères de l’énoncé**
 >
@@ -1814,7 +1881,7 @@ Cochez chaque case (☐) lorsque le livrable est produit et le critère d’acce
 >
 > ☐ 4 Golden Signals observés ; paliers NFR atteints ou écarts argumentés (P95 ≤ 500 ms, ≥ 600 ops/s, dispo 95 %).
 >
-> ☐ Campagnes de charge avec comparatifs (avant/après, N = 1..4), tolérance aux pannes démontrée.
+> ☐ Campagnes de charge avec comparatifs (avant/après, N = 1..4 sur `catalog-service` pilote), tolérance aux pannes démontrée.
 >
 > ☐ LB et cache en production (compose) avec impacts chiffrés.
 >
@@ -1906,9 +1973,9 @@ Durée : 12 à 15 minutes de présentation + questions. Objectif : démontrer qu
 | Haute | Ajouter les tests automatisés gateway et E2E; viser ≥ 80 % sur le domaine critique |
 | Haute | Produire les schémas de persistance, migrations et seeds des services métier |
 | Haute | Implémenter idempotence, exactly-once et journal append-only côté services concernés |
-| Moyenne | Ajouter `/metrics` Prometheus et dashboards Grafana 4 Golden Signals |
+| Moyenne | Raccorder `/metrics` Prometheus aux dashboards Grafana 4 Golden Signals |
 | Moyenne | Réaliser les campagnes de charge et remplir §10.3, §10.5 à §10.8 |
-| Moyenne | Ajouter load balancing N = 1..4 et test de kill d’instance |
+| Moyenne | Finaliser load balancing N = 1..4 sur `catalog-service` pilote et test de kill d’instance |
 | Moyenne | Implémenter caching sur endpoints candidats et mesurer cache on/off |
 | Moyenne | Finaliser sécurité gateway : JWT/API key, rate limiting, CORS par environnement |
 | Moyenne | Produire collection Postman/OpenAPI complète des services métier |

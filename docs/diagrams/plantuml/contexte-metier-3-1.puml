@@ -1,0 +1,78 @@
+@startuml contexte-metier-3-1
+title Section 3.1 - Contexte metier CanTelcoX API Gateway
+
+left to right direction
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam rectangle {
+  RoundCorner 8
+}
+skinparam actor {
+  BorderColor #2F3A4A
+  BackgroundColor #F8FAFC
+}
+skinparam database {
+  BorderColor #475569
+  BackgroundColor #F8FAFC
+}
+
+actor "Abonnes particuliers\n/ PME" as Subscribers
+actor "Operateur\n(exploitation)" as Operator
+
+rectangle "Canaux clients" as ClientChannels #EFF6FF {
+  rectangle "Frontend Expo" as Frontend #DBEAFE
+}
+
+rectangle "Systeme documente\nCanTelcoX API Gateway" as Gateway #DCFCE7 {
+  rectangle "Base URL stable\nHTTP REST /v1" as StableUrl #BBF7D0
+  rectangle "Proxy de routage\n/v1/{service}/{path}" as Router #BBF7D0
+  rectangle "Diagnostic\n/health et /routes" as Diagnostics #BBF7D0
+}
+
+rectangle "Services metier amont\n(hors perimetre du depot gateway)" as Upstream #F8FAFC {
+  rectangle "identity-service\nUtilisateurs, auth, MFA" as Identity #E0F2FE
+  rectangle "order-service\nCommandes, activations" as Orders #E0F2FE
+  rectangle "catalog-service\nCatalogue, offres" as Catalog #E0F2FE
+  rectangle "customers-service\nClients" as Customers #E0F2FE
+  rectangle "billing-service\nUsage, factures" as Billing #E0F2FE
+  rectangle "audit-service\nAudit append-only" as Audit #E0F2FE
+}
+
+rectangle "Observabilite" as Observability #F1F5F9 {
+  rectangle "Prometheus\nBlackbox Exporter" as Blackbox #E2E8F0
+  rectangle "Grafana" as Grafana #E2E8F0
+}
+
+Subscribers --> Frontend : utilise
+Frontend --> Gateway : HTTP REST /v1
+
+Gateway --> Identity : /v1/users/*\n/v1/auth/*
+Gateway --> Orders : /v1/orders/*
+Gateway --> Catalog : /v1/catalog/*
+Gateway --> Customers : /v1/customers/*
+Gateway --> Billing : /v1/billing/*
+Gateway --> Audit : /v1/audit/*
+
+Operator --> Diagnostics : consulte /routes
+Blackbox --> Diagnostics : sonde /health
+Grafana --> Blackbox : visualise l'etat
+
+StableUrl -[hidden]- Router
+Router -[hidden]- Diagnostics
+
+legend right
+  |= Couleur / ligne |= Sens |
+  | Vert | Systeme documente dans ce depot |
+  | Bleu | Service amont |
+  | Ligne pleine | Interaction principale |
+endlegend
+
+note bottom of Gateway
+Le gateway masque la localisation reelle des services,
+fournit une base URL stable au frontend et expose /routes
+pour diagnostiquer la configuration effective.
+end note
+
+@enduml

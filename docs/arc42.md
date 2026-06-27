@@ -58,7 +58,7 @@ Les objectifs suivants sont dérivés de la section 3 du cahier de charge, qui f
 | 1 | Performance | Latence P95 opération -> ACK <= 500 ms en phase microservices; cible <= 250 ms en architecture event-driven | Le gateway doit rester un proxy léger, éviter les traitements métier et limiter la surcharge ajoutée aux appels HTTP. |
 | 2 | Débit | >= 600 opérations/s en phase microservices; cible >= 1000 opérations/s en architecture event-driven | Le routage doit rester simple et les services doivent pouvoir évoluer indépendamment derrière le gateway. |
 | 3 | Disponibilité | 95 % en phase microservices; cible 99 % en architecture event-driven | Le gateway doit retourner des erreurs explicites (`502`, `503`) et permettre de détecter rapidement les services indisponibles. |
-| 4 | Observabilité | Logs structurés et métriques dès la phase 1; traces distribuées à partir de la phase 2 | Le gateway expose `/health` et `/routes`; l'ajout de métriques, logs corrélés et traces distribuées est une priorité d'évolution. |
+| 4 | Observabilité | Logs structurés et métriques dès la phase 1; traces distribuées à partir de la phase 2 | Le gateway expose `/health`, `/routes` et `/metrics`; les logs JSON incluent un `trace_id` propagé vers les services amont. |
 | 5 | Conformité et auditabilité | Idempotence des commandes et activations, écritures de facturation fiables, journaux append-only, traçabilité CRTC/Loi 25 | Le gateway doit pouvoir transmettre les informations nécessaires aux services métier et rester compatible avec les futures politiques d'audit, d'authentification et d'autorisation. |
 | 6 | Sécurité opérationnelle | Contrôles anti-fraude attendus pour SIM swap, usage anormal et fraude roaming | Le gateway sert de point d'entrée unique et devra supporter les contrôles d'accès communs, même si la logique anti-fraude détaillée appartient aux services métier. |
 
@@ -124,6 +124,9 @@ La justification complète de ce choix est documentée dans [ADR 0006](adr/0006-
 | `identity-service` | `100.83.57.43:8020` |
 | `order-service` | `100.108.225.1:8030` |
 | `catalog-service` | `100.95.65.46:8040` |
+| `customers-service` | `100.99.167.126:8050` |
+| `billing-service` | `100.114.185.38:8060` |
+| `audit-service` | `100.94.161.70:8070` |
 | `observability` | `100.87.177.66` |
 
 Le gateway doit pouvoir joindre les machines Tailnet depuis son environnement d'exécution.
@@ -247,16 +250,24 @@ Responsabilités internes:
 
 ## 5.3 Modèle de domaine
 
+![Modèle de domaine CanTelcoX](diagrams/plantuml/domain-model-5-3.svg)
+
 Le gateway ne possède pas de modèle de domaine métier riche.
-Son modèle logique est une table de routage qui associe une famille de routes `/v1/{service}` à une URL amont configurée.
-Les modèles métier comme utilisateur, commande, catalogue, client, facture et audit appartiennent aux services responsables.
-Pour les services métier, le dossier de domaine recommande de clarifier tôt certaines frontières: distinguer l'identité numérique du client métier, versionner le catalogue afin qu'une commande référence une version précise de l'offre, et traiter la conformité/audit comme une capacité horizontale alimentée par les événements des autres contextes (CanTelcoX_Dossier_Domaine.pdf, p. 21).
+Les modèles métier appartiennent aux services responsables : identité, client, lignes mobiles, catalogue, commandes, facturation et audit.
+La vue logique distingue notamment l'identité numérique du client métier, versionne le catalogue afin qu'une commande référence une version précise de l'offre, et traite la conformité/audit comme une capacité horizontale alimentée par les événements des autres contextes.
 
 # 6. Vue d'exécution (runtime)
 
 Cette section correspond à la vue processus de Kruchten 4+1.
 
-## 6.1 Scénario: vérification de santé
+## 6.1 Scénario: parcours E2E nominal
+
+![Scénario E2E CanTelcoX](diagrams/plantuml/runtime-e2e-6-1.svg)
+
+Le parcours nominal couvre l'inscription, la validation MFA, la consultation du catalogue, la création de commande avec `Idempotency-Key`, la déclaration facturable et la consultation d'usage.
+Le gateway relaie les appels; les règles métier restent dans les services amont.
+
+## 6.1a Scénario: vérification de santé
 
 ```text
 Client -> API Gateway: GET /health
@@ -338,11 +349,24 @@ Machine hôte / laboratoire
 | `identity-service` | `http://100.83.57.43:8020` |
 | `order-service` | `http://100.108.225.1:8030` |
 | `catalog-service` | `http://100.95.65.46:8040` |
-| `customers-service` | À configurer |
-| `billing-service` | À configurer |
-| `audit-service` | À configurer |
+| `customers-service` | `http://100.99.167.126:8050` |
+| `billing-service` | `http://100.114.185.38:8060` |
+| `audit-service` | `http://100.94.161.70:8070` |
 
-## 7.3 Observability
+## 7.3 Load balancing
+
+Le load balancing est démontré sur `catalog-service` comme service pilote avec
+HAProxy. Le gateway reste stateless et continue de lire une URL amont par
+service; en mode load balancing, `CATALOG_SERVICE_URL` pointe vers
+`http://127.0.0.1:18040`, puis HAProxy répartit les requêtes vers les instances
+catalogue actives.
+
+Ce choix couvre l'exigence de comparaison N = 1..4 instances et de tolérance aux
+pannes sans imposer immédiatement un load balancer devant tous les services. Le
+même patron est réplicable aux autres services en ajoutant un backend HAProxy
+dédié et en remplaçant l'URL amont correspondante.
+
+## 7.4 Observability
 
 L'observabilité est déployée dans un environnement dédié nommé `cantelcox-observability`.
 La cible Tailnet connue pour l'observabilité est `100.87.177.66`.
@@ -354,7 +378,7 @@ La pile cible contient:
 - Blackbox Exporter sur le port `9115`.
 
 Le modèle initial utilise Blackbox Exporter pour sonder les endpoints `/health` des services.
-Les métriques applicatives Prometheus sont prévues comme une étape d'instrumentation ultérieure.
+Le gateway expose des métriques applicatives Prometheus sur `/metrics`. Les autres services peuvent être ajoutés progressivement selon le même patron.
 
 # 8. Concepts transversaux
 
@@ -474,7 +498,7 @@ Qualité
 | R1 | URLs amont incorrectes | Moyenne | Élevé | `/routes` expose la configuration active; ajouter des tests de connectivité automatisés. |
 | R2 | Services futurs non disponibles | Élevée | Moyen | Variables vides et réponse `503`; créer les services et renseigner les URLs. |
 | R3 | Pas de découverte de services | Moyenne | Moyen | `.env` centralisé; évaluer DNS interne, service registry ou convention Tailnet. |
-| R4 | Pas de métriques applicatives | Moyenne | Moyen | `/health` et Blackbox Exporter; ajouter `/metrics` par service. |
+| R4 | Métriques applicatives partielles | Moyenne | Moyen | `/health`, Blackbox Exporter et `/metrics` gateway; ajouter `/metrics` par service. |
 | R5 | Sécurité API incomplète | Moyenne | Élevé | Définir authentification, autorisation et rate limiting. |
 | R6 | Proxy HTTP synchrone | Faible | Moyen | Évaluer `httpx` async et timeouts par service. |
 
@@ -483,7 +507,7 @@ Qualité
 - Les ADR 0001 à 0005 sont encore peu documentés.
 - Les routes clients, facturation et audit sont prêtes mais leurs services ne sont pas encore branchés.
 - Les tests automatisés du gateway ne sont pas présents dans ce dépôt.
-- Les métriques applicatives Prometheus ne sont pas encore exposées par les services.
+- Les métriques applicatives Prometheus sont exposées par le gateway; les autres services doivent encore être raccordés progressivement.
 
 ## 11.3 Points à clarifier
 

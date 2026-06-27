@@ -1,0 +1,107 @@
+@startuml runtime-e2e-6-1
+title Scenario 6.1 - Parcours E2E CanTelcoX (cas nominal)
+
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam sequence {
+  ArrowColor #A80036
+  LifeLineBorderColor #CBD5E1
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #1E3A5F
+  ParticipantBackgroundColor #DBEAFE
+  ActorBorderColor #2F3A4A
+  ActorBackgroundColor #F8FAFC
+}
+
+actor Client
+participant "API Gateway\nFastAPI" as Gateway
+participant "identity-service" as Identity
+participant "catalog-service" as Catalog
+participant "order-service" as Orders
+participant "billing-service" as Billing
+participant "audit-service" as Audit
+
+Client -> Gateway : POST /v1/users\nprofil + consentements
+activate Gateway
+Gateway -> Identity : POST /v1/users
+activate Identity
+Identity -> Audit : trace creation profil
+activate Audit
+Audit --> Identity : 202 accepted
+deactivate Audit
+Identity --> Gateway : 201 profil cree
+deactivate Identity
+Gateway --> Client : 201 Created
+deactivate Gateway
+
+Client -> Gateway : POST /v1/auth/mfa/challenge
+activate Gateway
+Gateway -> Identity : POST /v1/auth/mfa/challenge
+activate Identity
+Identity --> Gateway : 201 challenge cree
+deactivate Identity
+Gateway --> Client : 201 challenge cree
+deactivate Gateway
+
+Client -> Gateway : POST /v1/auth/mfa/verify\ncode OTP
+activate Gateway
+Gateway -> Identity : POST /v1/auth/mfa/verify
+activate Identity
+Identity -> Audit : trace MFA valide
+activate Audit
+Audit --> Identity : 202 accepted
+deactivate Audit
+Identity --> Gateway : 200 token/session
+deactivate Identity
+Gateway --> Client : 200 token/session
+deactivate Gateway
+
+Client -> Gateway : GET /v1/catalog/plans
+activate Gateway
+Gateway -> Catalog : GET /v1/catalog/plans
+activate Catalog
+Catalog --> Gateway : 200 offres actives
+deactivate Catalog
+Gateway --> Client : 200 offres actives
+deactivate Gateway
+
+Client -> Gateway : POST /v1/orders\nIdempotency-Key: K
+activate Gateway
+Gateway -> Orders : POST /v1/orders\nIdempotency-Key: K
+activate Orders
+Orders -> Catalog : verifier offre + prix versionnes
+activate Catalog
+Catalog --> Orders : offre admissible
+deactivate Catalog
+Orders -> Identity : valider client / token
+activate Identity
+Identity --> Orders : client valide
+deactivate Identity
+Orders -> Billing : declarer commande facturable
+activate Billing
+Billing --> Orders : 202 accepted
+deactivate Billing
+Orders -> Audit : trace commande / activation
+activate Audit
+Audit --> Orders : 202 accepted
+deactivate Audit
+Orders --> Gateway : 201 commande confirmee
+deactivate Orders
+Gateway --> Client : 201 commande confirmee
+deactivate Gateway
+
+Client -> Gateway : GET /v1/billing/usage
+activate Gateway
+Gateway -> Billing : GET /v1/billing/usage
+activate Billing
+Billing --> Gateway : 200 usage + facture
+deactivate Billing
+Gateway --> Client : 200 usage + facture
+deactivate Gateway
+
+note over Gateway,Audit
+Le gateway conserve methode, chemin, corps, query params
+et headers applicatifs comme Idempotency-Key.
+end note
+@enduml

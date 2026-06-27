@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="583px" preserveAspectRatio="none" style="width:677px;height:583px;" version="1.1" viewBox="0 0 677 583" width="677px" zoomAndPan="magnify"><defs/><g><text fill="#000000" font-family="Arial" font-size="18" lengthAdjust="spacingAndGlyphs" textLength="284" x="200" y="19.2419">Whitebox API Gateway - Niveau 2</text><!--MD5=[20739893a3f680369e2b8e6f2c345f86]
+cluster API Gateway--><polygon fill="#DCFCE7" points="22,48.5158,116,48.5158,123,73.5838,441,73.5838,441,571.5158,22,571.5158,22,48.5158" style="stroke: #000000; stroke-width: 1.5;"/><line style="stroke: #000000; stroke-width: 1.5;" x1="22" x2="123" y1="73.5838" y2="73.5838"/><text fill="#000000" font-family="Arial" font-size="14" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="88" x="26" y="65.4818">API Gateway</text><!--MD5=[a88daa769981030d98eed5c15618f282]
+entity In--><rect fill="#BBF7D0" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="141" x="159.5" y="86.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="121" x="169.5" y="111.4818">Adapters d'entree</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="96" x="169.5" y="130.5497">FastAPI / HTTP</text><!--MD5=[7a980fe5388f2c0b48dbfb0a8ec1f254]
+entity Routing--><rect fill="#E0F2FE" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="132" x="164" y="223.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="56" x="174" y="248.4818">Routage</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="112" x="174" y="267.5497">ROUTE_TARGETS</text><!--MD5=[7434fc19771e0f66f8659a4e95695800]
+entity Proxy--><rect fill="#E0F2FE" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="235" x="38.5" y="360.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="74" x="48.5" y="385.4818">Proxy HTTP</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="215" x="48.5" y="404.5497">preserve methode, corps, query</text><!--MD5=[2c8113cc364a23b9ee674e814acb7abf]
+entity Config--><rect fill="#FEF3C7" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="116" x="309" y="360.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="93" x="319" y="385.4818">Configuration</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="96" x="319" y="404.5497">Settings / .env</text><!--MD5=[bae64a0f682721a45e86ef5e026fef12]
+entity Errors--><rect fill="#FEE2E2" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="125" x="63.5" y="497.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="105" x="73.5" y="522.4818">Gestion erreurs</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="98" x="73.5" y="541.5497">404 / 503 / 502</text><!--MD5=[547e150f78d6a205ac455f605e672411]
+entity Headers--><rect fill="#F1F5F9" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="113" x="223.5" y="497.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="93" x="233.5" y="522.4818">Filtre headers</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="78" x="233.5" y="541.5497">hop-by-hop</text><!--MD5=[5ec0b7946e33da715c165993145a4ef4]
+entity Upstream--><rect fill="#E0F2FE" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="193" x="457.5" y="497.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="150" x="467.5" y="522.4818">Services metier amont</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="173" x="467.5" y="541.5497">identity, order, catalog, ...</text><!--MD5=[80698cd7321587f5df29e4be59f7913c]
+link In to Routing--><path d="M230,144.5658 C230,144.5658 230,218.5058 230,218.5058 " fill="none" id="In-&gt;Routing" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="230,223.5058,234,214.5058,230,218.5058,226,214.5058,230,223.5058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="75" x="231" y="189.4129">/v1/{service}</text><!--MD5=[dd362cee9c573bfa6a1bf40828eec53d]
+link Routing to Config--><path d="M284.75,281.5658 C284.75,321.7858 284.75,389.5158 284.75,389.5158 C284.75,389.5158 303.98,389.5158 303.98,389.5158 " fill="none" id="Routing-&gt;Config" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="308.98,389.5158,299.98,385.5158,303.98,389.5158,299.98,393.5158,308.98,389.5158" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="82" x="324" y="326.4129">lit URL amont</text><!--MD5=[d1aacf4ee717c90c2ce80a3075af8d4c]
+link Routing to Proxy--><path d="M218.75,281.5658 C218.75,281.5658 218.75,355.5058 218.75,355.5058 " fill="none" id="Routing-&gt;Proxy" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="218.75,360.5058,222.75,351.5058,218.75,355.5058,214.75,351.5058,218.75,360.5058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="71" x="175" y="326.4129">cible service</text><!--MD5=[d251dd5a3773a9ae1754af5b970f3cc4]
+link Proxy to Headers--><path d="M240.17,418.5658 C240.17,418.5658 240.17,492.5058 240.17,492.5058 " fill="none" id="Proxy-&gt;Headers" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="240.17,497.5058,244.17,488.5058,240.17,492.5058,236.17,488.5058,240.17,497.5058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="131" x="267" y="463.4129">filtre requete/reponse</text><!--MD5=[cf654bc1247ff9aaf025b93255461083]
+link Proxy to Errors--><path d="M126,418.5658 C126,418.5658 126,492.5058 126,492.5058 " fill="none" id="Proxy-&gt;Errors" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="126,497.5058,130,488.5058,126,492.5058,122,488.5058,126,497.5058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="84" x="134" y="463.4129">indisponibilite</text><!--MD5=[4de54d7aba583ba3478404aa04f6b687]
+link Proxy to Upstream--><path d="M256.83,418.7758 C256.83,437.5858 256.83,458.5158 256.83,458.5158 C256.83,458.5158 554,458.5158 554,458.5158 C554,458.5158 554,492.2858 554,492.2858 " fill="none" id="Proxy-&gt;Upstream" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="554,497.2858,558,488.2858,554,492.2858,550,488.2858,554,497.2858" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="110" x="555" y="463.4129">HTTP REST interne</text><!--MD5=[2ed454fedd7fc679ab3b736a5df1262f]
+@startuml api-gateway-5-2
+title Whitebox API Gateway - Niveau 2
+
+top to bottom direction
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam rectangle {
+  RoundCorner 8
+}
+
+package "API Gateway" #DCFCE7 {
+  rectangle "Adapters d'entree\nFastAPI / HTTP" as In #BBF7D0
+  rectangle "Routage\nROUTE_TARGETS" as Routing #E0F2FE
+  rectangle "Proxy HTTP\npreserve methode, corps, query" as Proxy #E0F2FE
+  rectangle "Configuration\nSettings / .env" as Config #FEF3C7
+  rectangle "Gestion erreurs\n404 / 503 / 502" as Errors #FEE2E2
+  rectangle "Filtre headers\nhop-by-hop" as Headers #F1F5F9
+}
+
+In - -> Routing : /v1/{service}
+Routing - -> Config : lit URL amont
+Routing - -> Proxy : cible service
+Proxy - -> Headers : filtre requete/reponse
+Proxy - -> Errors : indisponibilite
+
+rectangle "Services metier amont\nidentity, order, catalog, ..." as Upstream #E0F2FE
+Proxy - -> Upstream : HTTP REST interne
+@enduml
+
+PlantUML version 1.2020.02(Sun Mar 01 05:22:07 EST 2020)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Java Version: 21.0.11+10-1-24.04.2-Ubuntu
+Operating System: Linux
+Default Encoding: UTF-8
+Language: en
+Country: null
+--></g></svg>

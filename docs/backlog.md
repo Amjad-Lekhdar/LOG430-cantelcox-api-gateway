@@ -2,6 +2,8 @@
 
 Ce backlog resume le travail restant pour rapprocher le projet des criteres du cahier de charge LOG430. Il distingue les elements deja amorces dans le depot API Gateway des livrables encore a produire ou a demontrer.
 
+Derniere mise a jour: 23 juin 2026.
+
 ## Legende
 
 | Priorite | Sens |
@@ -22,14 +24,23 @@ Ce backlog resume le travail restant pour rapprocher le projet des criteres du c
 | --- | --- | --- | --- | --- |
 | B-01 | ADR et decisions d'architecture | P0 | En cours | ADR complets, traçables au cahier de charge |
 | B-02 | Documentation Arc42 et 4+1 | P0 | En cours | Documentation finale coherente avec l'etat reel du systeme |
-| B-03 | Cas d'utilisation Must | P0 | A faire | Au moins 5 UC Must decrits et relies aux services |
+| B-03 | Cas d'utilisation Must | P0 | Fait | 5 UC Must decrits et relies aux services |
 | B-04 | Tests automatises du gateway | P0 | A faire | Tests unitaires/integration pour les routes critiques |
-| B-05 | Observabilite | P0 | En cours | Health, logs structures, metriques Prometheus, dashboard Grafana |
+| B-05 | Observabilite | P0 | En cours | Gateway instrumente; Prometheus/Grafana a raccorder et captures a produire |
 | B-06 | Docker Compose complet | P0 | En cours | Gateway, services, DB, observabilite et healthchecks lancables |
 | B-07 | Performance et charge | P1 | A faire | Mesures k6/JMeter/Artillery et comparaison des variantes |
 | B-08 | Securite applicative | P1 | En cours | CORS, erreurs uniformes, auth/MFA documentee ou implementee |
-| B-09 | Runbook et guide de demo | P1 | A faire | Procedure de lancement, diagnostic et demonstration |
+| B-09 | Runbook et guide de demo | P1 | En cours | Procedure de lancement, diagnostic et demonstration |
 | B-10 | Rapport final et preuves | P1 | A faire | Captures, tableaux de resultats, ecarts argumentes |
+
+## Progres documentaire recent
+
+- [x] Vue niveau 1 du systeme et interactions entre services: `docs/diagrams/plantuml/building-blocks-5-1.svg`.
+- [x] Vues niveau 2 de l'API Gateway et des six services selon l'architecture hexagonale: `docs/diagrams/plantuml/level2/`.
+- [x] Modele de domaine logique: `docs/diagrams/plantuml/domain-model-5-3.svg`.
+- [x] Scenario d'execution E2E nominal: `docs/diagrams/plantuml/runtime-e2e-6-1.svg`.
+- [x] Sections 5.1, 5.2, 5.3 et 6.1 integrees dans `docs/Gabarit_LOG430_Phase1_Architecture_v3_1.md`.
+- [x] Choix PostgreSQL par service documente dans la vue d'architecture.
 
 ## B-01 - Completer les ADR
 
@@ -64,11 +75,11 @@ Statut: En cours
 
 - [ ] Ajouter une section "Etat d'implementation" dans `docs/arc42.md`.
 - [ ] Distinguer clairement ce qui est implemente, simule, configure hors depot et prevu.
-- [ ] Completer la vue logique avec les bounded contexts metier.
-- [ ] Completer la vue processus avec les scenarios UC Must.
-- [ ] Completer la vue de deploiement avec les VM/LXC, Tailnet, gateway, observabilite et services.
-- [ ] Completer la vue developpement avec structure des depots/services.
-- [ ] Ajouter les limites connues et les ecarts par rapport au cahier.
+- [x] Completer la vue logique avec les bounded contexts metier.
+- [x] Completer la vue processus avec un scenario E2E couvrant les UC Must.
+- [x] Completer la vue de deploiement avec les VM/LXC, reseau prive, gateway, observabilite et services.
+- [x] Completer la vue developpement avec la structure du gateway et la cible hexagonale des services.
+- [x] Ajouter les limites connues et les ecarts par rapport au cahier.
 
 ### Criteres d'acceptation
 
@@ -79,19 +90,21 @@ Statut: En cours
 ## B-03 - Documenter au moins 5 UC Must
 
 Priorite: P0  
-Statut: A faire
+Statut: Fait
 
 ### Taches
 
-- [ ] Decrire UC-01 Inscription et verification d'identite.
-- [ ] Decrire UC-02 Authentification et MFA.
-- [ ] Decrire UC-03 Activation d'une ligne.
-- [ ] Decrire UC-04 Consultation usage/factures.
-- [ ] Decrire UC-05 Prise de commande.
+- [x] Decrire UC-01 Inscription et verification d'identite.
+- [x] Decrire UC-02 Authentification et MFA.
+- [x] Decrire UC-03 Activation d'une ligne.
+- [x] Decrire UC-04 Consultation usage/factures.
+- [x] Decrire UC-05 Prise de commande.
 - [ ] Optionnel: decrire UC-06 Paiement de facture.
 - [ ] Optionnel: decrire UC-07 Detection de fraude.
 - [ ] Optionnel: decrire UC-08 Cycle de facturation mensuel.
-- [ ] Relier chaque UC au service responsable et a la route gateway.
+- [x] Relier chaque UC au service responsable et a la route gateway.
+
+Preuve: section 1.2 de `docs/Gabarit_LOG430_Phase1_Architecture_v3_1.md`.
 
 ### Criteres d'acceptation
 
@@ -133,12 +146,16 @@ Statut: En cours
 
 ### Taches
 
-- [ ] Ajouter des logs structures au gateway.
-- [ ] Ajouter un endpoint `/metrics` Prometheus.
-- [ ] Definir les metriques: trafic, latence, erreurs, saturation.
-- [ ] Documenter Prometheus, Grafana et Blackbox Exporter.
+- [x] Ajouter des logs structures au gateway.
+- [x] Ajouter un endpoint `/metrics` Prometheus.
+- [x] Definir les metriques gateway: trafic, latence, erreurs, requetes en cours et saturation processus.
+- [x] Propager un `X-Trace-Id` vers les services amont.
+- [x] Documenter les metriques gateway dans le README, le runbook et Arc42.
+- [ ] Raccorder `/metrics` du gateway dans Prometheus.
+- [ ] Ajouter/mettre a jour les dashboards Grafana pour les metriques gateway.
+- [ ] Documenter Prometheus, Grafana et Blackbox Exporter cote observability.
 - [ ] Ajouter des captures Grafana au rapport final.
-- [ ] Montrer les endpoints `/health` de chaque service.
+- [ ] Montrer les endpoints `/health` de chaque service.changed
 
 ### Criteres d'acceptation
 
@@ -148,6 +165,11 @@ Statut: En cours
   - erreurs 4xx/5xx;
   - saturation CPU/RAM/threads.
 - Les paliers NFR sont suivis explicitement: P95 <= 500 ms, debit >= 600 ops/s, disponibilite 95 %.
+
+### Etat actuel
+
+- Cote gateway: logs JSON, `X-Trace-Id`, `/metrics` et metriques Prometheus applicatives sont en place.
+- Cote observability: Prometheus/Grafana/Blackbox existent dans le depot dedie, mais il reste a raccorder le scrape `/metrics` du gateway, adapter les dashboards et produire les captures.
 
 ## B-06 - Rendre Docker Compose plus complet
 
@@ -178,14 +200,15 @@ Statut: A faire
 
 ### Taches
 
-- [ ] Ajouter des scripts k6, JMeter ou Artillery.
-- [ ] Tester consultation catalogue ou usage a haute cadence.
+- [x] Ajouter un script k6 initial pour le load balancing catalogue.
+- [x] Tester consultation catalogue a haute cadence via gateway + HAProxy pour N = 1.
 - [ ] Tester prise de commande.
 - [ ] Tester activation de ligne si le service existe.
 - [ ] Comparer appels directs vs via gateway.
 - [ ] Comparer cache off vs cache on.
-- [ ] Comparer N = 1, 2, 3, 4 instances.
-- [ ] Documenter un test de panne en charge.
+- [ ] Comparer N = 1, 2, 3, 4 instances sur `catalog-service` comme service pilote. N = 1 mesure: 19,85 req/s, P95 9,91 ms, 0 % erreurs.
+- [ ] Documenter un test de panne en charge sur une instance `catalog-service`.
+- [ ] Décrire le patron HAProxy réplicable aux autres services sans l'implémenter partout.
 
 ### Criteres d'acceptation
 
@@ -216,14 +239,15 @@ Statut: En cours
 ## B-09 - Completer le runbook et le guide de demo
 
 Priorite: P1  
-Statut: A faire
+Statut: En cours
 
 ### Taches
 
-- [ ] Completer `docs/runbook.md`.
+- [x] Documenter le reseau, les adresses et le diagnostic dans `docs/runbook.md`.
 - [ ] Ajouter les commandes de demarrage.
-- [ ] Ajouter les commandes de verification sante.
-- [ ] Ajouter les commandes de diagnostic `502`, `503`, CORS et Tailnet.
+- [x] Ajouter les commandes de verification sante.
+- [x] Ajouter le diagnostic du reseau prive LXC/Tailscale et des services injoignables.
+- [ ] Ajouter les commandes de diagnostic applicatif `502`, `503` et CORS.
 - [ ] Ajouter le scenario de demonstration.
 - [ ] Ajouter les URLs Swagger, Prometheus et Grafana.
 - [ ] Ajouter une procedure de rollback simple.
@@ -257,17 +281,17 @@ Statut: A faire
 ## Ordre recommande
 
 1. Completer les ADR vides.
-2. Completer le runbook.
-3. Ajouter les tests du gateway.
-4. Ajouter les metriques et logs structures.
-5. Mettre a jour Docker Compose.
-6. Documenter les 5 UC Must.
+2. Ajouter les tests du gateway.
+3. Ajouter les metriques et logs structures.
+4. Mettre a jour Docker Compose.
+5. Completer le runbook et le scenario de demonstration.
+6. Finaliser l'etat d'implementation dans Arc42.
 7. Produire les tests de charge.
-8. Finaliser Arc42 et le rapport PDF.
+8. Finaliser le rapport PDF et les preuves.
 
 ## Definition de fini locale
 
-- [ ] Au moins 5 UC Must sont documentes.
+- [x] Au moins 5 UC Must sont documentes.
 - [ ] Le gateway est testable automatiquement.
 - [ ] Les ADR principaux sont complets.
 - [ ] Arc42 decrit l'etat reel du systeme.

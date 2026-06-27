@@ -1,0 +1,113 @@
+@startdot building-blocks-5-1
+digraph G {
+  graph [
+    label="Vue de construction - Niveau 1 (CanTelcoX)",
+    labelloc=t,
+    fontsize=18,
+    fontname="Arial",
+    bgcolor="white",
+    rankdir=TB,
+    splines=curved,
+    nodesep=0.75,
+    ranksep=1.0
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Arial",
+    fontsize=12,
+    margin="0.12,0.08",
+    color="#111827"
+  ];
+
+  edge [
+    fontname="Arial",
+    fontsize=9,
+    color="#A80036",
+    arrowsize=0.75
+  ];
+
+  Gateway [
+    label="API Gateway\nFastAPI - port 8000",
+    fillcolor="#DCFCE7",
+    width=2.1
+  ];
+
+  Identity [
+    label="identity-service\nUtilisateurs, auth, MFA",
+    fillcolor="#E0F2FE"
+  ];
+  Catalog [
+    label="catalog-service\nCatalogue, offres",
+    fillcolor="#E0F2FE"
+  ];
+  Orders [
+    label="order-service\nCommandes, activations",
+    fillcolor="#E0F2FE"
+  ];
+  Customers [
+    label="customers-service\nClients metier",
+    fillcolor="#E0F2FE"
+  ];
+  Billing [
+    label="billing-service\nUsage, factures, paiements",
+    fillcolor="#E0F2FE"
+  ];
+  Audit [
+    label="audit-service\nAudit append-only",
+    fillcolor="#E0F2FE"
+  ];
+
+  { rank=same; Customers; Orders; Identity; }
+  { rank=same; Catalog; Audit; Billing; }
+
+  Customers -> Orders [style=invis, weight=10];
+  Orders -> Identity [style=invis, weight=10];
+  Catalog -> Audit [style=invis, weight=10];
+  Audit -> Billing [style=invis, weight=10];
+  Customers -> Catalog [style=invis, weight=10];
+  Orders -> Audit [style=invis, weight=10];
+  Identity -> Billing [style=invis, weight=10];
+
+  Gateway -> Customers [label="profil client"];
+  Gateway -> Catalog [
+    headlabel="consulter offres",
+    labeldistance=2.0,
+    labelangle=25
+  ];
+  Gateway -> Orders [label="commande\nactivation"];
+  Gateway -> Billing [
+    headlabel="usage / paiement",
+    labeldistance=2.0,
+    labelangle=-25
+  ];
+  Gateway -> Identity [label="auth\nMFA"];
+  Gateway -> Audit [label="audit"];
+
+  edge [
+    fontname="Arial",
+    fontsize=9,
+    color="#A80036",
+    fontcolor="#111827",
+    style=dashed,
+    arrowsize=0.65,
+    constraint=false
+  ];
+
+  Orders -> Catalog [
+    headlabel="verifier prix",
+    labeldistance=2.0,
+    labelangle=25
+  ];
+  Orders -> Identity [xlabel="valider client"];
+  Orders -> Billing [xlabel="commande facturable"];
+  Identity -> Audit [xlabel="trace auth"];
+  Billing -> Audit [xlabel="trace paiement"];
+  Customers -> Audit [
+    taillabel="trace profil",
+    labeldistance=2.2,
+    labelangle=-35
+  ];
+}
+@enddot

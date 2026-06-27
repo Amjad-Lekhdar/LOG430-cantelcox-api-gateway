@@ -1,3 +1,7 @@
+import json
+import logging
+import time
+from uuid import uuid4
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request as UrlRequest
@@ -6,10 +10,35 @@ from urllib.request import urlopen
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST
+from prometheus_client import Counter
+from prometheus_client import Gauge
+from prometheus_client import Histogram
+from prometheus_client import generate_latest
 
 from app.core.config import settings
 
 app = FastAPI(title="CanTelcoX API Gateway", version="0.1.0")
+
+logger = logging.getLogger("cantelcox.api_gateway")
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+HTTP_REQUESTS_TOTAL = Counter(
+    "api_gateway_http_requests_total",
+    "Total HTTP requests received by the API Gateway.",
+    ["method", "route", "status"],
+)
+HTTP_REQUEST_DURATION_SECONDS = Histogram(
+    "api_gateway_http_request_duration_seconds",
+    "HTTP request duration observed by the API Gateway.",
+    ["method", "route", "status"],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
+)
+HTTP_IN_PROGRESS = Gauge(
+    "api_gateway_http_requests_in_progress",
+    "HTTP requests currently being processed by the API Gateway.",
+    ["method", "route"],
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,9 +78,68 @@ INVALID_AUTHORIZATION_HEADERS = {
 }
 
 
+@app.middleware("http")
+async def observe_requests(request: Request, call_next) -> Response:
+    started_at = time.perf_counter()
+    trace_id = request.headers.get("x-trace-id") or str(uuid4())
+    request.state.trace_id = trace_id
+    in_progress_route = _route_label(request)
+    method = request.method
+
+    HTTP_IN_PROGRESS.labels(method=method, route=in_progress_route).inc()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers["X-Trace-Id"] = trace_id
+        return response
+    except Exception:
+        logger.exception(
+            _json_log(
+                event="http_request_failed",
+                trace_id=trace_id,
+                method=method,
+                path=request.url.path,
+                route=_route_label(request),
+                status=status_code,
+                duration_ms=round((time.perf_counter() - started_at) * 1000, 2),
+                client=_client_host(request),
+            )
+        )
+        raise
+    finally:
+        duration = time.perf_counter() - started_at
+        status = str(status_code)
+        route = _route_label(request)
+        HTTP_IN_PROGRESS.labels(method=method, route=in_progress_route).dec()
+        HTTP_REQUESTS_TOTAL.labels(method=method, route=route, status=status).inc()
+        HTTP_REQUEST_DURATION_SECONDS.labels(
+            method=method,
+            route=route,
+            status=status,
+        ).observe(duration)
+        logger.info(
+            _json_log(
+                event="http_request",
+                trace_id=trace_id,
+                method=method,
+                path=request.url.path,
+                route=route,
+                status=status_code,
+                duration_ms=round(duration * 1000, 2),
+                client=_client_host(request),
+            )
+        )
+
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok", "service": "api-gateway"}
+
+
+@app.get("/metrics")
+def metrics() -> Response:
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/routes")
@@ -99,6 +187,7 @@ async def proxy_v1(service: str, request: Request, path: str = "") -> Response:
         upstream_url = f"{upstream_url}?{urlencode(request.query_params.multi_items())}"
 
     headers = _filter_request_headers(dict(request.headers.items()))
+    headers["X-Trace-Id"] = request.state.trace_id
 
     upstream_request = UrlRequest(
         upstream_url,
@@ -165,3 +254,25 @@ def _filter_request_headers(headers: dict[str, str]) -> dict[str, str]:
         del filtered_headers[authorization_header]
 
     return filtered_headers
+
+
+def _route_label(request: Request) -> str:
+    route = request.scope.get("route")
+    if route is not None and getattr(route, "path", None):
+        return route.path
+
+    path_parts = request.url.path.strip("/").split("/")
+    if len(path_parts) >= 2 and path_parts[0] == "v1":
+        return "/v1/{service}/{path}"
+
+    return request.url.path
+
+
+def _client_host(request: Request) -> str:
+    if request.client is None:
+        return ""
+    return request.client.host
+
+
+def _json_log(**fields: object) -> str:
+    return json.dumps(fields, separators=(",", ":"), ensure_ascii=False)

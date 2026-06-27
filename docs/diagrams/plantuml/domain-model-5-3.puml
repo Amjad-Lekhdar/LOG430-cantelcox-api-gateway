@@ -1,0 +1,163 @@
+@startuml domain-model-5-3
+title Vue logique - Modele de domaine CanTelcoX
+
+top to bottom direction
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #E0F2FE
+  BorderColor #1E3A5F
+  HeaderBackgroundColor #1E3A5F
+  HeaderFontColor #FFFFFF
+}
+skinparam enum {
+  BackgroundColor #FEF3C7
+  BorderColor #92400E
+}
+
+class Customer <<aggregate root>> {
+  id : UUID
+  identityId : UUID
+  segment : CustomerSegment
+  createdAt : DateTime
+}
+
+class ContactInfo <<value object>> {
+  email : Email
+  phone : PhoneNumber
+}
+
+class Address <<value object>> {
+  line1 : String
+  city : String
+  province : String
+  postalCode : String
+}
+
+class Consent <<entity>> {
+  id : UUID
+  type : ConsentType
+  granted : Boolean
+  recordedAt : DateTime
+}
+
+class IdentityAccount <<aggregate root>> {
+  id : UUID
+  username : String
+  passwordHash : String
+  mfaEnabled : Boolean
+}
+
+class MobileLine <<aggregate root>> {
+  id : UUID
+  msisdn : MSISDN
+  activatedAt : DateTime
+}
+
+class Offer <<aggregate root>> {
+  id : UUID
+  code : String
+  version : Integer
+  name : String
+  active : Boolean
+}
+
+class Plan <<entity>> {
+  id : UUID
+  dataAllowanceGb : Integer
+  voiceUnlimited : Boolean
+  roamingIncluded : Boolean
+}
+
+class Price <<value object>> {
+  amount : Money
+  currency : Currency
+  recurrence : BillingPeriod
+}
+
+class EligibilityRule <<entity>> {
+  id : UUID
+  ruleType : String
+  expression : String
+}
+
+class Order <<aggregate root>> {
+  id : UUID
+  customerId : UUID
+  idempotencyKey : String
+  createdAt : DateTime
+}
+
+class OrderItem <<entity>> {
+  id : UUID
+  offerId : UUID
+  offerVersion : Integer
+  quantity : Integer
+  unitPrice : Money
+}
+
+class Invoice <<aggregate root>> {
+  id : UUID
+  customerId : UUID
+  periodStart : Date
+  periodEnd : Date
+  total : Money
+}
+
+class UsageRecord <<entity>> {
+  id : UUID
+  lineId : UUID
+  quantity : Decimal
+  unit : UsageUnit
+  recordedAt : DateTime
+}
+
+class Payment <<entity>> {
+  id : UUID
+  invoiceId : UUID
+  amount : Money
+  paidAt : DateTime
+}
+
+class AuditEvent <<aggregate root>> {
+  id : UUID
+  actorId : UUID
+  action : String
+  resourceType : String
+  resourceId : UUID
+  occurredAt : DateTime
+}
+
+class RiskSignal <<entity>> {
+  id : UUID
+  type : String
+  severity : RiskSeverity
+  detectedAt : DateTime
+}
+
+Customer "1" *-- "1" ContactInfo : possede
+Customer "1" *-- "0..1" Address : possede
+Customer "1" *-- "*" Consent : consentements
+Customer "1" --> "1" IdentityAccount : lie identite
+Customer "1" --> "*" MobileLine : detient
+Customer "1" --> "*" Order : passe
+Customer "1" --> "*" Invoice : recoit
+
+MobileLine "0..1" --> "1" Offer : souscrit
+Offer "1" *-- "1" Plan : decrit
+Offer "1" *-- "1" Price : facture
+Offer "1" *-- "*" EligibilityRule : contraint
+
+Order "1" *-- "*" OrderItem : contient
+OrderItem "*" --> "1" Offer : reference version
+Order "0..1" --> "1" MobileLine : active
+
+Invoice "1" *-- "*" UsageRecord : regroupe
+Invoice "1" *-- "0..*" Payment : paiements
+
+AuditEvent "0..*" --> "0..1" RiskSignal : produit
+AuditEvent "*" --> "1" Customer : concerne
+@enduml

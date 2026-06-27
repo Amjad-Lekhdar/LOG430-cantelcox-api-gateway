@@ -1,0 +1,64 @@
+@startdot audit-service-5-2
+digraph G {
+  graph [
+    label="Whitebox audit-service - Architecture hexagonale",
+    labelloc=t,
+    fontsize=18,
+    fontname="Arial",
+    bgcolor="white",
+    rankdir=LR,
+    splines=ortho,
+    nodesep=0.55,
+    ranksep=0.75
+  ];
+
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11, color="#111827"];
+  edge [fontname="Arial", fontsize=10, color="#A80036", arrowsize=0.75];
+
+  Interface [label="Interface Layer", fillcolor="#FEF3C7"];
+  Business [label="Business Layer", fillcolor="#DBEAFE"];
+  Infra [label="Infrastructure Layer", fillcolor="#FECACA"];
+
+  Services [label="Services metier\nREST clients", fillcolor="#FFF7ED"];
+  Events [label="Domain event producer", fillcolor="#FFF7ED"];
+  AuditApi [label="AuditController\n/v1/audit/*", fillcolor="#DBEAFE"];
+  Consumer [label="DomainEventConsumer", fillcolor="#DBEAFE"];
+
+  UseCases [label="Application Services\nAppendAuditEvent\nSearchAuditTrail\nRaiseFraudAlert", fillcolor="#E0F2FE"];
+  Domain [
+    label="Business Model\n\nAuditEvent\nActor\nRiskSignal\nAppendOnlyLog\n\nDependencies go inwards",
+    shape=polygon,
+    sides=6,
+    style=filled,
+    fillcolor="#FEF3C7",
+    color="#B91C1C",
+    width=3.2,
+    height=2.2
+  ];
+  Ports [label="Ports\nAuditRepository\nFraudRulesPort\nAlertPort", fillcolor="#F8FAFC"];
+
+  Repo [label="AuditRepository Adapter\nPostgreSQL", fillcolor="#DBEAFE"];
+  Rules [label="FraudRulesEngine", fillcolor="#DBEAFE"];
+  Alert [label="AlertPublisher", fillcolor="#DBEAFE"];
+
+  Db [label="Audit log DB", shape=cylinder, fillcolor="#E0F2FE"];
+  FraudRules [label="Fraud rules", fillcolor="#F8FAFC"];
+  AlertChannel [label="Ops / alert channel", fillcolor="#F8FAFC"];
+
+  { rank=same; Interface; Business; Infra; }
+  Interface -> Business -> Infra [style=invis, weight=10];
+
+  Services -> AuditApi [label="trace operation"];
+  Events -> Consumer [label="evenement domaine"];
+  AuditApi -> UseCases;
+  Consumer -> UseCases;
+  UseCases -> Domain;
+  UseCases -> Ports;
+  Ports -> Repo [label="append-only"];
+  Ports -> Rules [label="detecte risque"];
+  Ports -> Alert [label="publie alerte"];
+  Repo -> Db;
+  Rules -> FraudRules;
+  Alert -> AlertChannel;
+}
+@enddot
