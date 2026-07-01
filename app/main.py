@@ -1,6 +1,8 @@
 import json
 import logging
 import time
+from base64 import b64decode
+from base64 import b64encode
 from uuid import uuid4
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -17,6 +19,15 @@ from prometheus_client import Histogram
 from prometheus_client import generate_latest
 
 from app.core.config import settings
+
+try:
+    import redis
+    from redis.exceptions import RedisError
+except ImportError:
+    class RedisError(Exception):
+        pass
+
+    redis = None
 
 app = FastAPI(title="CanTelcoX API Gateway", version="0.1.0")
 
@@ -39,6 +50,13 @@ HTTP_IN_PROGRESS = Gauge(
     "HTTP requests currently being processed by the API Gateway.",
     ["method", "route"],
 )
+CACHE_REQUESTS_TOTAL = Counter(
+    "api_gateway_cache_requests_total",
+    "Total cache lookups by result.",
+    ["service", "result"],
+)
+
+redis_client = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -52,6 +70,7 @@ ROUTE_TARGETS = {
     "users": settings.identity_service_url,
     "auth": settings.identity_service_url,
     "orders": settings.order_service_url,
+    "lines": settings.line_service_url,
     "catalog": settings.catalog_service_url,
     "customers": settings.customers_service_url,
     "billing": settings.billing_service_url,
@@ -148,6 +167,7 @@ def list_routes() -> dict[str, str]:
         "/v1/users/*": settings.identity_service_url,
         "/v1/auth/*": settings.identity_service_url,
         "/v1/orders/*": settings.order_service_url,
+        "/v1/lines/*": settings.line_service_url,
         "/v1/catalog/*": settings.catalog_service_url,
         "/v1/customers/*": settings.customers_service_url,
         "/v1/billing/*": settings.billing_service_url,
@@ -188,6 +208,12 @@ async def proxy_v1(service: str, request: Request, path: str = "") -> Response:
 
     headers = _filter_request_headers(dict(request.headers.items()))
     headers["X-Trace-Id"] = request.state.trace_id
+    cache_key = _cache_key(service, request.method, upstream_url, headers)
+
+    cached_response = _read_cached_response(cache_key, service)
+    if cached_response is not None:
+        cached_response.headers["X-Cache"] = "HIT"
+        return cached_response
 
     upstream_request = UrlRequest(
         upstream_url,
@@ -200,12 +226,15 @@ async def proxy_v1(service: str, request: Request, path: str = "") -> Response:
         with urlopen(upstream_request, timeout=15) as upstream_response:
             content = upstream_response.read()
             response_headers = _filter_response_headers(dict(upstream_response.headers.items()))
-            return Response(
+            response = Response(
                 content=content,
                 status_code=upstream_response.status,
                 headers=response_headers,
                 media_type=upstream_response.headers.get("content-type"),
             )
+            _write_cached_response(cache_key, service, response)
+            response.headers["X-Cache"] = "MISS" if cache_key else "BYPASS"
+            return response
     except HTTPError as exc:
         content = exc.read()
         response_headers = _filter_response_headers(dict(exc.headers.items()))
@@ -224,6 +253,121 @@ async def proxy_v1(service: str, request: Request, path: str = "") -> Response:
                 "reason": str(exc.reason),
             },
         )
+
+
+def _cache_key(service: str, method: str, upstream_url: str, headers: dict[str, str]) -> str | None:
+    if not settings.cache_enabled:
+        return None
+
+    if method.upper() != "GET":
+        return None
+
+    if service not in _cacheable_services():
+        return None
+
+    if any(key.lower() == "authorization" for key in headers):
+        return None
+
+    return f"api-gateway:v1:{service}:{method.upper()}:{upstream_url}"
+
+
+def _cacheable_services() -> set[str]:
+    return {
+        service.strip()
+        for service in settings.cache_services.split(",")
+        if service.strip()
+    }
+
+
+def _read_cached_response(cache_key: str | None, service: str) -> Response | None:
+    if cache_key is None:
+        CACHE_REQUESTS_TOTAL.labels(service=service, result="bypass").inc()
+        return None
+
+    client = _redis_client()
+    if client is None:
+        CACHE_REQUESTS_TOTAL.labels(service=service, result="unavailable").inc()
+        return None
+
+    try:
+        cached_payload = client.get(cache_key)
+    except RedisError as exc:
+        logger.warning(_json_log(event="cache_read_failed", service=service, reason=str(exc)))
+        CACHE_REQUESTS_TOTAL.labels(service=service, result="error").inc()
+        return None
+
+    if cached_payload is None:
+        CACHE_REQUESTS_TOTAL.labels(service=service, result="miss").inc()
+        return None
+
+    try:
+        payload = json.loads(cached_payload)
+        content = b64decode(payload["body"])
+        headers = payload.get("headers", {})
+        CACHE_REQUESTS_TOTAL.labels(service=service, result="hit").inc()
+        return Response(
+            content=content,
+            status_code=payload["status_code"],
+            headers=headers,
+            media_type=payload.get("media_type"),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        logger.warning(_json_log(event="cache_payload_invalid", service=service, reason=str(exc)))
+        CACHE_REQUESTS_TOTAL.labels(service=service, result="invalid").inc()
+        return None
+
+
+def _write_cached_response(cache_key: str | None, service: str, response: Response) -> None:
+    if cache_key is None or response.status_code != 200:
+        return
+
+    client = _redis_client()
+    if client is None:
+        return
+
+    payload = {
+        "status_code": response.status_code,
+        "headers": _cacheable_response_headers(dict(response.headers.items())),
+        "media_type": response.media_type,
+        "body": b64encode(response.body).decode("ascii"),
+    }
+
+    try:
+        client.setex(cache_key, settings.cache_ttl_seconds, json.dumps(payload))
+    except RedisError as exc:
+        logger.warning(_json_log(event="cache_write_failed", service=service, reason=str(exc)))
+
+
+def _cacheable_response_headers(headers: dict[str, str]) -> dict[str, str]:
+    excluded = {"content-length", "x-cache"}
+    return {
+        key: value
+        for key, value in headers.items()
+        if key.lower() not in excluded
+    }
+
+
+def _redis_client():
+    global redis_client
+    if redis_client is not None:
+        return redis_client
+
+    if redis is None:
+        logger.warning(_json_log(event="cache_unavailable", reason="redis package not installed"))
+        return None
+
+    try:
+        redis_client = redis.Redis.from_url(
+            settings.redis_url,
+            socket_connect_timeout=0.2,
+            socket_timeout=0.2,
+        )
+        redis_client.ping()
+    except RedisError as exc:
+        logger.warning(_json_log(event="cache_unavailable", reason=str(exc)))
+        redis_client = None
+
+    return redis_client
 
 
 def _filter_response_headers(headers: dict[str, str]) -> dict[str, str]:

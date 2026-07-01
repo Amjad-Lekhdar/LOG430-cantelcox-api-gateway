@@ -8,6 +8,14 @@ Accepté
 
 CanTelcoX est déployé sous forme de microservices exécutés sur des VM/LXC distinctes. Comme chaque service peut être hébergé sur une machine différente, il devient nécessaire d'observer l'état des VM afin de vérifier qu'elles restent disponibles et qu'elles ne régressent pas en termes de performance.
 
+## Options considérées
+
+| Option | Exemple | Avantages | Inconvénients |
+| --- | --- | --- | --- |
+| Observabilité locale dans chaque dépôt | Chaque service lance son propre Prometheus ou ses propres scripts de surveillance | Simple pour un service isolé | Vision fragmentée, duplication de configuration, comparaison difficile entre services |
+| Observabilité sur la même machine que le gateway | Prometheus, Grafana et Blackbox Exporter tournent à côté de `api-gateway` | Déploiement initial rapide, accès simple aux métriques gateway | Couplage avec le gateway, risque de perte d'observabilité si cette machine tombe |
+| Environnement d'observabilité dédié | Un hôte `cantelcox-observability` exécute Prometheus, Blackbox Exporter et Grafana pour superviser les endpoints `/health` | Supervision centralisée, indépendante des services applicatifs, adaptée aux VM/LXC | Environnement supplémentaire à maintenir, connectivité réseau à surveiller |
+| Solution SaaS externe | Datadog, Grafana Cloud ou équivalent collecte les métriques et alertes | Fonctionnalités avancées, moins d'exploitation locale | Dépendance externe, coût possible, moins adapté au laboratoire hors Internet |
 
 ## Décision
 

@@ -19,8 +19,10 @@ participant "API Gateway\nFastAPI" as Gateway
 participant "identity-service" as Identity
 participant "catalog-service" as Catalog
 participant "order-service" as Orders
+participant "line-service" as Lines
 participant "billing-service" as Billing
 participant "audit-service" as Audit
+participant "free5GC core\nAMF/SMF/UDM/UDR/UPF" as Free5GC
 
 Client -> Gateway : POST /v1/users\nprofil + consentements
 activate Gateway
@@ -82,7 +84,19 @@ Orders -> Billing : declarer commande facturable
 activate Billing
 Billing --> Orders : 202 accepted
 deactivate Billing
-Orders -> Audit : trace commande / activation
+Orders -> Lines : POST /v1/lines/activations\norderId, customerId, offer
+activate Lines
+Lines -> Free5GC : provisionner abonne / SIM\nSUPI, DNN, slice
+activate Free5GC
+Free5GC --> Lines : activation acceptee\netat reseau
+deactivate Free5GC
+Lines -> Audit : trace activation ligne
+activate Audit
+Audit --> Lines : 202 accepted
+deactivate Audit
+Lines --> Orders : 201 ligne active
+deactivate Lines
+Orders -> Audit : trace commande confirmee
 activate Audit
 Audit --> Orders : 202 accepted
 deactivate Audit
@@ -100,8 +114,10 @@ deactivate Billing
 Gateway --> Client : 200 usage + facture
 deactivate Gateway
 
-note over Gateway,Audit
+note over Gateway,Free5GC
 Le gateway conserve methode, chemin, corps, query params
 et headers applicatifs comme Idempotency-Key.
+L'integration free5GC reste encapsulee dans line-service;
+order-service orchestre la commande sans provisionner le reseau.
 end note
 @enduml

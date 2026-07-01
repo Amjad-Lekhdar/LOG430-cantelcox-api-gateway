@@ -33,11 +33,18 @@ rectangle "Systeme documente\nCanTelcoX API Gateway" as Gateway #DCFCE7 {
 
 rectangle "Services metier amont\n(hors perimetre du depot gateway)" as Upstream #F8FAFC {
   rectangle "identity-service\nUtilisateurs, auth, MFA" as Identity #E0F2FE
-  rectangle "order-service\nCommandes, activations" as Orders #E0F2FE
+  rectangle "order-service\nCommandes" as Orders #E0F2FE
+  rectangle "line-service\nLignes, SIM/SUPI, activations" as Lines #E0F2FE
   rectangle "catalog-service\nCatalogue, offres" as Catalog #E0F2FE
   rectangle "customers-service\nClients" as Customers #E0F2FE
   rectangle "billing-service\nUsage, factures" as Billing #E0F2FE
   rectangle "audit-service\nAudit append-only" as Audit #E0F2FE
+}
+
+rectangle "Coeur reseau 5G\nfree5GC" as Free5GC #FFF7ED {
+  rectangle "Control plane\nAMF / SMF / UDM / UDR / NRF" as ControlPlane #FED7AA
+  rectangle "User plane\nUPF" as UserPlane #FED7AA
+  rectangle "Acces radio simule\nUERANSIM gNB / UE" as Ueransim #FED7AA
 }
 
 rectangle "Observabilite" as Observability #F1F5F9 {
@@ -50,10 +57,17 @@ Frontend --> Gateway : HTTP REST /v1
 
 Gateway --> Identity : /v1/users/*\n/v1/auth/*
 Gateway --> Orders : /v1/orders/*
+Gateway --> Lines : /v1/lines/*
 Gateway --> Catalog : /v1/catalog/*
 Gateway --> Customers : /v1/customers/*
 Gateway --> Billing : /v1/billing/*
 Gateway --> Audit : /v1/audit/*
+
+Orders --> Lines : demande activation\ncommande confirmee
+Lines --> Free5GC : activation ligne\nprovisioning SIM / SUPI
+Free5GC --> Lines : statut session\netat reseau
+ControlPlane -[hidden]- UserPlane
+UserPlane -[hidden]- Ueransim
 
 Operator --> Diagnostics : consulte /routes
 Blackbox --> Diagnostics : sonde /health
@@ -66,6 +80,7 @@ legend right
   |= Couleur / ligne |= Sens |
   | Vert | Systeme documente dans ce depot |
   | Bleu | Service amont |
+  | Orange | Coeur reseau 5G integre |
   | Ligne pleine | Interaction principale |
 endlegend
 

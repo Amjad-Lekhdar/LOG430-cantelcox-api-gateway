@@ -16,6 +16,19 @@ def restore_route_targets():
     gateway.ROUTE_TARGETS.update(original)
 
 
+@pytest.fixture
+def restore_cache():
+    original_client = gateway.redis_client
+    original_cache_enabled = gateway.settings.cache_enabled
+    original_cache_services = gateway.settings.cache_services
+    original_cache_ttl_seconds = gateway.settings.cache_ttl_seconds
+    yield
+    gateway.redis_client = original_client
+    gateway.settings.cache_enabled = original_cache_enabled
+    gateway.settings.cache_services = original_cache_services
+    gateway.settings.cache_ttl_seconds = original_cache_ttl_seconds
+
+
 def test_health_returns_ok():
     assert gateway.health_check() == {"status": "ok", "service": "api-gateway"}
 
@@ -25,6 +38,7 @@ def test_routes_returns_configured_upstreams():
 
     assert "/v1/users/*" in routes
     assert "/v1/orders/*" in routes
+    assert "/v1/lines/*" in routes
     assert "/v1/catalog/*" in routes
 
 
@@ -95,6 +109,67 @@ def test_proxy_forwards_request_to_mock_upstream(monkeypatch, restore_route_targ
     }
 
 
+def test_catalog_get_is_cached_after_first_upstream_call(
+    monkeypatch,
+    restore_route_targets,
+    restore_cache,
+):
+    gateway.ROUTE_TARGETS["catalog"] = "http://catalog.example.test"
+    gateway.redis_client = FakeRedis()
+    upstream_calls = []
+
+    def mock_upstream(upstream_request, timeout):
+        upstream_calls.append(upstream_request.full_url)
+        return FakeUpstreamResponse(
+            status=200,
+            headers={"content-type": "application/json"},
+            body={"plans": [{"id": "mobile-10", "price": "39.99"}]},
+        )
+
+    monkeypatch.setattr(gateway, "urlopen", mock_upstream)
+
+    first_response = _call_proxy("catalog", path="plans")
+    second_response = _call_proxy("catalog", path="plans")
+
+    assert first_response.headers["x-cache"] == "MISS"
+    assert second_response.headers["x-cache"] == "HIT"
+    assert _json_body(second_response) == {"plans": [{"id": "mobile-10", "price": "39.99"}]}
+    assert upstream_calls == ["http://catalog.example.test/v1/catalog/plans"]
+
+
+def test_authenticated_get_bypasses_cache(monkeypatch, restore_route_targets, restore_cache):
+    gateway.ROUTE_TARGETS["catalog"] = "http://catalog.example.test"
+    gateway.redis_client = FakeRedis()
+    upstream_calls = []
+
+    def mock_upstream(upstream_request, timeout):
+        upstream_calls.append(upstream_request.full_url)
+        return FakeUpstreamResponse(
+            status=200,
+            headers={"content-type": "application/json"},
+            body={"call": len(upstream_calls)},
+        )
+
+    monkeypatch.setattr(gateway, "urlopen", mock_upstream)
+
+    first_response = _call_proxy(
+        "catalog",
+        path="plans",
+        headers=[(b"authorization", b"Bearer valid-token")],
+    )
+    second_response = _call_proxy(
+        "catalog",
+        path="plans",
+        headers=[(b"authorization", b"Bearer valid-token")],
+    )
+
+    assert first_response.headers["x-cache"] == "BYPASS"
+    assert second_response.headers["x-cache"] == "BYPASS"
+    assert _json_body(first_response) == {"call": 1}
+    assert _json_body(second_response) == {"call": 2}
+    assert len(upstream_calls) == 2
+
+
 class FakeUpstreamResponse:
     def __init__(self, status, headers, body):
         self.status = status
@@ -109,6 +184,18 @@ class FakeUpstreamResponse:
 
     def read(self):
         return self._body
+
+
+class FakeRedis:
+    def __init__(self):
+        self.items = {}
+
+    def get(self, key):
+        return self.items.get(key)
+
+    def setex(self, key, ttl, value):
+        assert ttl == gateway.settings.cache_ttl_seconds
+        self.items[key] = value
 
 
 def _call_proxy(service, path="", query_string=b"", headers=None):

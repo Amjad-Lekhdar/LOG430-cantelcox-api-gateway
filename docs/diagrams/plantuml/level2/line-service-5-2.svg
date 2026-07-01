@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1750" height="900" viewBox="0 0 1750 900">
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#111"/></marker><marker id="arrowStart" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M9,0 L9,6 L0,3 z" fill="#111"/></marker></defs>
+<rect width="100%" height="100%" fill="#FFF"/>
+<text x="875" y="48" text-anchor="middle" style="font-family:Arial;font-size:36px;font-weight:bold;fill:#000">line-service - Hexagonal Architecture</text>
+<polygon points="425,95 875,95 1085,450 875,805 425,805 215,450" fill="#ECECEC" stroke="#333" stroke-width="4"/>
+<polygon points="470,150 830,150 1000,450 830,750 470,750 300,450" fill="#F7F4E9" stroke="#333" stroke-width="4"/>
+<polygon points="515,235 785,235 910,450 785,665 515,665 390,450" fill="#FFF2C6" stroke="#B00000" stroke-width="4"/>
+<rect x="165" y="135" width="190" height="42" rx="6" fill="#FEF3C7" stroke="#333" stroke-width="1.5"/>
+<text x="260" y="162" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">Interface Layer</text>
+<rect x="555" y="135" width="205" height="42" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="657" y="162" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">Business Layer</text>
+<rect x="960" y="135" width="225" height="42" rx="6" fill="#FECACA" stroke="#B91C1C" stroke-width="1.5"/>
+<text x="1072" y="162" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">Infrastructure Layer</text>
+<text x="345" y="340" text-anchor="middle" style="font-family:Arial;font-size:28px;font-weight:normal;fill:#000" transform="rotate(-62 345 340)">Interface Adapter</text>
+<text x="910" y="335" text-anchor="middle" style="font-family:Arial;font-size:28px;font-weight:normal;fill:#000" transform="rotate(62 910 335)">Repositories</text>
+<text x="985" y="370" text-anchor="middle" style="font-family:Arial;font-size:28px;font-weight:normal;fill:#000" transform="rotate(62 985 370)">Data Sources</text>
+<text x="650" y="430" text-anchor="middle" style="font-family:Arial;font-size:30px;font-weight:bold;fill:#000">Business</text>
+<text x="650" y="465" text-anchor="middle" style="font-family:Arial;font-size:30px;font-weight:bold;fill:#000">Model</text>
+<text x="650" y="500" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">MobileLine</text>
+<text x="650" y="521" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">SimProfile</text>
+<text x="650" y="542" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">NetworkSession</text>
+<text x="650" y="563" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">ActivationRequest</text>
+<text x="650" y="625" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:normal;fill:#000;font-style:italic">Dependencies</text>
+<text x="650" y="647" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:normal;fill:#000;font-style:italic">go</text>
+<text x="650" y="669" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:normal;fill:#000;font-style:italic">Inwards</text>
+<rect x="0" y="205" width="145" height="90" rx="10" fill="#FFF7ED" stroke="#F59E0B" stroke-width="1.5"/>
+<text x="72" y="242" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000;font-style:italic">REST Client</text>
+<text x="72" y="266" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:normal;fill:#000;font-style:italic">API Gateway</text>
+<line x1="145" y1="250" x2="300" y2="295" stroke="#111" stroke-width="1.2" marker-start="url(#arrowStart)" marker-end="url(#arrow)"/>
+<rect x="0" y="405" width="145" height="90" rx="10" fill="#FFF7ED" stroke="#F59E0B" stroke-width="1.5"/>
+<text x="72" y="442" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000;font-style:italic">Activation Flow</text>
+<text x="72" y="466" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:normal;fill:#000;font-style:italic">line provisioning</text>
+<line x1="145" y1="450" x2="300" y2="485" stroke="#111" stroke-width="1.2" marker-start="url(#arrowStart)" marker-end="url(#arrow)"/>
+<rect x="0" y="605" width="145" height="90" rx="10" fill="#FFF7ED" stroke="#F59E0B" stroke-width="1.5"/>
+<text x="72" y="642" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000;font-style:italic">Order Client</text>
+<text x="72" y="666" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:normal;fill:#000;font-style:italic">activation request</text>
+<line x1="145" y1="650" x2="300" y2="485" stroke="#111" stroke-width="1.2" marker-start="url(#arrowStart)" marker-end="url(#arrow)"/>
+<rect x="300" y="224" width="190" height="72" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="395" y="252" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000">LineController</text>
+<text x="395" y="276" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">/v1/lines/*</text>
+<line x1="490" y1="260" x2="555" y2="430" stroke="#6B8EC6" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="300" y="414" width="190" height="72" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="395" y="442" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000">ActivationController</text>
+<text x="395" y="466" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">/v1/lines/activations</text>
+<line x1="490" y1="450" x2="555" y2="505" stroke="#6B8EC6" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="255" y1="450" x2="340" y2="450" stroke="#6B8EC6" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="930" y1="450" x2="845" y2="450" stroke="#6B8EC6" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="1010" y1="450" x2="945" y2="450" stroke="#6B8EC6" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1095" y="229" width="170" height="62" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1180" y="265" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000">LineRepository</text>
+<line x1="910" y1="430" x2="1095" y2="260" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1095" y="419" width="170" height="62" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1180" y="455" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000">Free5gcPort</text>
+<line x1="910" y1="430" x2="1095" y2="450" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1095" y="609" width="170" height="62" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1180" y="645" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000">AuditPort</text>
+<line x1="910" y1="505" x2="1095" y2="640" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1320" y="195" width="185" height="80" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="1412" y="227" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000;font-style:italic">PostgreSQL Adapter</text>
+<text x="1412" y="251" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">lines</text>
+<line x1="1265" y1="260" x2="1320" y2="235" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="1505" y1="235" x2="1545" y2="235" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1320" y="390" width="185" height="80" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="1412" y="422" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000;font-style:italic">free5GC Adapter</text>
+<text x="1412" y="446" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">SUPI / slice</text>
+<line x1="1265" y1="450" x2="1320" y2="430" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="1505" y1="430" x2="1545" y2="430" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1320" y="585" width="185" height="80" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="1412" y="617" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000;font-style:italic">AuditClient</text>
+<text x="1412" y="641" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">trace activation</text>
+<line x1="1265" y1="640" x2="1320" y2="625" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="1505" y1="625" x2="1545" y2="625" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M1545 202 C1545 186, 1665 186, 1665 202 L1665 258 C1665 274, 1545 274, 1545 258 Z" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<ellipse cx="1605.0" cy="202" rx="60.0" ry="14" fill="#BFDBFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="1605.0" y="232" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:bold;fill:#000">Lines DB</text>
+<text x="1605.0" y="252" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">PostgreSQL</text>
+<rect x="1545" y="390" width="125" height="80" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1607" y="422" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:bold;fill:#000">free5GC core</text>
+<text x="1607" y="446" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">AMF / SMF / UDM</text>
+<rect x="1545" y="585" width="125" height="80" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1607" y="617" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:bold;fill:#000">audit-service</text>
+<text x="1607" y="641" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">HTTP REST</text>
+</svg>

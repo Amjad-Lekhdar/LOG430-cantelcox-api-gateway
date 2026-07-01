@@ -277,7 +277,7 @@ Cochez (✓) le ou les domaines couverts par chaque UC, pour démontrer l’alig
 |--------|-------------|-------------------|-------------------------|------------------------------|------------------------------------|----------------|
 | UC-01 Inscription & identité | Abonné, service identité | Gateway disponible, `IDENTITY_SERVICE_URL` configuré | Le client appelle `/v1/users/*`; le gateway route vers `identity-service`; le service crée ou vérifie le profil | Route inconnue `404`, service non configuré `503`, service indisponible `502` | Profil client créé/vérifié; accès journalisable | Route gateway prête; logique métier dans service amont |
 | UC-02 Authentification & MFA | Abonné, service identité | Compte existant, route `/v1/auth/*` configurée | Le client initie l’authentification; le service identité valide les facteurs; le gateway relaie la réponse | MFA refusée ou expirée; service indisponible | Session ou jeton retourné par l’amont; opération sensible protégée | Route gateway prête; MFA non centralisé dans le gateway |
-| UC-03 Activation d’une ligne | Abonné/agent, service lignes/commandes | Client identifié, commande ou ligne admissible | Le client appelle une route d’activation via `/v1/orders/*` ou service lignes futur; l’amont active la ligne | Double soumission, fraude, HLR/HSS indisponible | Ligne active une seule fois; audit attendu | Routage commandes prêt; service lignes dédié à compléter |
+| UC-03 Activation d’une ligne | Abonné/agent, `line-service`, `order-service` | Client identifié, commande ou ligne admissible | Le client ou `order-service` déclenche `/v1/lines/activations`; `line-service` active la ligne via free5GC | Double soumission, fraude, free5GC indisponible | Ligne active une seule fois; audit attendu | Routage lignes à configurer; adapter free5GC à compléter |
 | UC-04 Consultation usage/factures | Abonné, service facturation/usage | Client authentifié, facturation disponible | Le client appelle `/v1/billing/*`; le gateway route vers le service facturation | Service non configuré `503`; service indisponible `502` | Usage/factures consultables selon droits | Conteneur LXC et URL configurés; application métier à déployer |
 | UC-05 Prise de commande | Abonné/agent, service commandes, catalogue | Catalogue et service commande disponibles | Le client consulte `/v1/catalog/*`, puis soumet `/v1/orders/*`; le gateway relaie les appels | Offre inexistante, commande invalide, double soumission | Commande enregistrée; idempotence attendue côté service | Routes catalogue/commandes prêtes; idempotence métier à compléter |
 | UC-06 Paiement de facture | Abonné, service facturation, passerelle paiement | Facture ouverte, passerelle simulée disponible | Le client appelle `/v1/billing/*` pour payer; le service facturation orchestre le paiement | Paiement refusé, doublon, passerelle indisponible | Paiement appliqué une seule fois; audit requis | Route préparée; service/passerelle à compléter |
@@ -515,7 +515,7 @@ Abonné CanTelcoX.
 
 **Acteurs secondaires**
 
-Frontend Expo, API Gateway, `order-service`, service lignes/activation, `catalog-service`, service d’audit, réseau mobile HLR/HSS simulé.
+Frontend Expo, API Gateway, `order-service`, `line-service`, `catalog-service`, service d’audit, coeur réseau free5GC et UERANSIM pour l’accès 5G simulé.
 
 **Préconditions**
 
@@ -524,7 +524,8 @@ Frontend Expo, API Gateway, `order-service`, service lignes/activation, `catalog
 - `ORDER_SERVICE_URL` est configuré.
 - La commande ou le forfait à activer existe.
 - La ligne n’est pas déjà active.
-- Le service d’activation ou `order-service` est joignable.
+- `line-service` est joignable.
+- L’adapter free5GC de `line-service` est configuré avec les paramètres SUPI/SIM, DNN et slice nécessaires au laboratoire.
 
 **Déclencheur**
 
@@ -533,15 +534,15 @@ Le client confirme l’activation d’une ligne depuis le frontend Expo.
 **Scénario principal**
 
 1. Le client sélectionne la commande ou la ligne à activer dans le frontend Expo.
-2. Le frontend envoie une requête HTTP vers l’API Gateway sur une route publique `/v1/orders/*` ou une route d’activation équivalente.
-3. L’API Gateway identifie le segment `orders`.
-4. Le gateway relaie la requête vers `order-service` en conservant la méthode HTTP, le corps, les headers applicatifs et la preuve d’authentification.
-5. `order-service` vérifie que le client est autorisé à activer la ligne.
-6. `order-service` vérifie que la commande ou le forfait est admissible à l’activation.
-7. `order-service` vérifie que la ligne n’est pas déjà active.
-8. `order-service` transmet la demande au service lignes/activation ou à l’adapter HLR/HSS simulé.
-9. Le service lignes/activation active la ligne mobile.
-10. `order-service` retourne une réponse de succès au gateway.
+2. Le frontend envoie une requête HTTP vers l’API Gateway sur une route publique `/v1/lines/activations`, ou `order-service` déclenche cette route après confirmation de commande.
+3. L’API Gateway identifie le segment `lines`.
+4. Le gateway relaie la requête vers `line-service` en conservant la méthode HTTP, le corps, les headers applicatifs et la preuve d’authentification.
+5. `line-service` vérifie que le client est autorisé à activer la ligne ou que la demande provient d’une commande admissible.
+6. `line-service` vérifie que la commande ou le forfait est admissible à l’activation.
+7. `line-service` vérifie que la ligne n’est pas déjà active.
+8. `line-service` transmet la demande à l’adapter free5GC.
+9. `line-service` provisionne le profil SIM/SUPI et vérifie l’état réseau dans free5GC.
+10. `line-service` retourne une réponse de succès au gateway ou à `order-service`.
 11. Le gateway relaie la réponse au frontend, qui affiche la ligne comme activée.
 
 **Scénarios alternatifs / exceptions**
@@ -561,22 +562,22 @@ Le client confirme l’activation d’une ligne depuis le frontend Expo.
 <li>Fin du cas; le client peut réessayer plus tard.</li>
 </ol>
 
-5a. `order-service` ne valide pas l’autorisation du client : le service refuse l’activation avec `401` ou `403`.
+5a. `line-service` ne valide pas l’autorisation du client : le service refuse l’activation avec `401` ou `403`.
 <ol>
 <li>Va à UC-02 Authentification & MFA si la session est absente ou expirée; sinon fin du cas.</li>
 </ol>
 
-6a. La commande ou le forfait n’est pas admissible : `order-service` refuse l’activation avec `409` ou `422`.
+6a. La commande ou le forfait n’est pas admissible : `line-service` refuse l’activation avec `409` ou `422`.
 <ol>
 <li>Retour à l’étape 1 pour choisir une commande ou une offre admissible.</li>
 </ol>
 
-7a. La ligne est déjà active : `order-service` retourne `409 Conflict`.
+7a. La ligne est déjà active : `line-service` retourne `409 Conflict`.
 <ol>
 <li>Fin du cas; le frontend affiche l’état actuel de la ligne.</li>
 </ol>
 
-8a. Le réseau mobile HLR/HSS simulé est indisponible : le service d’activation retourne une erreur.
+8a. Le coeur free5GC est indisponible : `line-service` retourne une erreur.
 <ol>
 <li>Fin du cas; la demande peut être rejouée plus tard avec la même clé d’idempotence si elle existe.</li>
 </ol>
@@ -608,7 +609,7 @@ Must.
 
 **État actuel dans le dépôt**
 
-La route gateway `/v1/orders/*` est prête et routée vers `order-service`. Le gateway peut transporter les headers applicatifs nécessaires, mais la logique complète d’activation, l’idempotence, l’intégration HLR/HSS simulée et le service lignes dédié doivent être confirmés ou complétés dans les services amont.
+La route gateway `/v1/lines/*` est préparée pour `line-service`. Le gateway peut transporter les headers applicatifs nécessaires, mais la logique complète d’activation, l’idempotence et l’intégration free5GC doivent être complétées dans `line-service`.
 
 ### UC-04 — Consultation usage / factures
 
@@ -901,11 +902,13 @@ Le gateway est le système documenté dans ce dépôt. Il masque la localisation
 |----------------|---------------|---------------|-----------------|
 | Frontend Expo | in | HTTPS / JSON | Application cliente qui consomme l’API REST `/v1` du gateway. |
 | `identity-service` | out | HTTP REST / JSON | Gestion des utilisateurs, authentification et MFA via `/v1/users/*` et `/v1/auth/*`. |
-| `order-service` | out | HTTP REST / JSON | Gestion des commandes et activations via `/v1/orders/*`. |
+| `order-service` | out | HTTP REST / JSON | Gestion des commandes via `/v1/orders/*`. |
+| `line-service` | out | HTTP REST / JSON | Gestion des lignes, SIM/SUPI, activations et état réseau via `/v1/lines/*`. |
 | `catalog-service` | out | HTTP REST / JSON | Consultation du catalogue et des offres via `/v1/catalog/*`. |
 | `customers-service` | out | HTTP REST / JSON | Gestion des profils clients via `/v1/customers/*`. |
 | `billing-service` | out | HTTP REST / JSON | Consultation de l’usage, des factures et des paiements via `/v1/billing/*`. |
 | `audit-service` | out | HTTP REST / JSON | Journalisation des opérations sensibles via `/v1/audit/*`. |
+| free5GC core | out | API / configuration réseau 5G | Coeur 5G de laboratoire utilisé par l’adapter d’activation de `line-service` pour provisionner les abonnés/SIM et vérifier l’état réseau. |
 | Prometheus Blackbox Exporter | in | HTTP | Sonde l’endpoint `/health` du gateway pour l’observabilité. |
 | Opérateur exploitation | in | HTTPS / JSON | Consulte `/health` et `/routes` pour diagnostiquer l’état du gateway et sa configuration de routage. |
 
@@ -913,11 +916,12 @@ Le gateway est le système documenté dans ce dépôt. Il masque la localisation
 
 Systèmes externes simulés à intégrer via adapters (ports/adapters) :
 
-| **Système externe simulé** | **Rôle**                       | **Protocole / adapter**          |
-|----------------------------|--------------------------------|----------------------------------|
-| Réseau mobile HLR/HSS      | Activation/état des lignes     | Adapter REST simulé à ajouter côté service lignes/commandes |
-| Hub de portabilité         | Portabilité du numéro (MSISDN) | Adapter REST simulé à ajouter côté service lignes |
-| Passerelle de paiement     | Paiement de facture (UC-06)    | Adapter REST simulé à ajouter côté service facturation |
+| **Système externe simulé / intégré** | **Rôle**                       | **Protocole / adapter**          |
+|--------------------------------------|--------------------------------|----------------------------------|
+| free5GC core                         | Activation, provisionnement SIM/SUPI, état des sessions 5G | Adapter d’activation côté `line-service`; appels API/scripts selon l’environnement lab |
+| UERANSIM gNB/UE                      | Accès radio et terminal 5G simulés pour valider l’attachement réseau | Scénarios de test raccordés au coeur free5GC |
+| Hub de portabilité                   | Portabilité du numéro (MSISDN) | Adapter REST simulé à ajouter côté service lignes |
+| Passerelle de paiement               | Paiement de facture (UC-06)    | Adapter REST simulé à ajouter côté service facturation |
 
 ## 3.3 Cartographie du domaine (DDD)
 
@@ -926,7 +930,7 @@ Bounded contexts du domaine télécom (frontières de service candidates) :
 | **Bounded context**          | **Responsabilité**                            | **Service candidat**      |
 |------------------------------|-----------------------------------------------|---------------------------|
 | Clients & Identité           | Profils abonnés, vérification d’identité, MFA | `identity-service` |
-| Lignes & Services            | Lignes / MSISDN, activation                   | `line-service` ou extension de `order-service` à clarifier |
+| Lignes & Services            | Lignes / MSISDN, SIM/SUPI, activation, état réseau | `line-service` |
 | Commandes & Activations      | Prise de commande, idempotence                | `order-service` |
 | Catalogue & Offres           | Forfaits, options, éligibilité                | `catalog-service` |
 | Usage / Rating / Facturation | Usage, rating, factures, exactly-once         | `billing-service` |
@@ -941,6 +945,8 @@ Catalogue & Offres
   -> Commandes & Activations : offres, forfaits, règles d'éligibilité
 Commandes & Activations
   -> Lignes & Services : demande d'activation
+Lignes & Services
+  -> free5GC : provisionnement abonné/SIM, état réseau
 Commandes & Activations
   -> Usage / Facturation : commande facturable
 Usage / Facturation
@@ -949,7 +955,7 @@ Tous les contextes
   -> Conformité & Audit : événements d'audit
 ```
 
-Les relations sont volontairement dirigées des consommateurs vers les producteurs de capacité métier. Le gateway ne crée pas de dépendance métier circulaire : il route seulement les appels HTTP vers le contexte responsable.
+Les relations sont volontairement dirigées des consommateurs vers les producteurs de capacité métier. Le gateway ne crée pas de dépendance métier circulaire : il route seulement les appels HTTP vers le contexte responsable. L’intégration free5GC est placée derrière un adapter de sortie du domaine d’activation : le BSS demande l’activation, mais ne dépend pas directement des composants AMF/SMF/UDM/UDR/UPF.
 
 **Blocs DDD à matérialiser dans le code :** Ubiquitous Language (mêmes noms d’entités dans la doc, les diagrammes et le code), Value Objects (ex. ligne de commande sans identité propre hors de son agrégat), Aggregates (cohérence transactionnelle via commit/rollback), Repositories (masquage de la persistance, ségrégation lecture/écriture).
 
@@ -980,7 +986,7 @@ Les relations sont volontairement dirigées des consommateurs vers les producteu
 | **Décision**             | **Choix retenu**                                | **Justification (→ ADR)**          |
 |--------------------------|-------------------------------------------------|------------------------------------|
 | Style global             | Architecture basée par services (microservices) | ADR-0001 à compléter; déjà reflété dans le routage par service |
-| Découpage (BC → service) | `identity-service`, `order-service`, `catalog-service`, `customers-service`, `billing-service`, `audit-service` | Alignement avec les bounded contexts DDD |
+| Découpage (BC → service) | `identity-service`, `order-service`, `line-service`, `catalog-service`, `customers-service`, `billing-service`, `audit-service` | Alignement avec les bounded contexts DDD |
 | Style par service        | Gateway en FastAPI/proxy; services métier cibles en hexagonal/ports-adapters | Le gateway reste une façade; la logique métier doit rester dans les services |
 
 ## 4.2 Communication inter-services
@@ -1042,10 +1048,12 @@ Les dépendances sont dirigées du client vers le gateway, puis du gateway vers 
 | `CanTelcoX API Gateway` | Routage `/v1/*`, diagnostic `/health` et `/routes`, filtrage des headers hop-by-hop, gestion des erreurs de disponibilité amont (`404`, `503`, `502`) | HTTP REST public, port `8000` |
 | `identity-service` | Utilisateurs, authentification, MFA et identité numérique | HTTP REST interne via `/v1/users/*` et `/v1/auth/*`, port `8020` |
 | `order-service` | Commandes, demandes d’activation et idempotence métier | HTTP REST interne via `/v1/orders/*`, port `8030` |
+| `line-service` | Lignes mobiles, MSISDN, SIM/SUPI, activation et état réseau | HTTP REST interne via `/v1/lines/*`, port `8080` |
 | `catalog-service` | Catalogue des offres, forfaits, options et règles d’éligibilité | HTTP REST interne via `/v1/catalog/*`, port `8040` |
 | `customers-service` | Client métier distinct de l’identité numérique | HTTP REST interne via `/v1/customers/*` ; service prévu, URL à configurer |
 | `billing-service` | Usage, factures, paiements et écritures de facturation | HTTP REST interne via `/v1/billing/*` ; service prévu, URL à configurer |
 | `audit-service` | Journalisation append-only, traces des opérations sensibles et support anti-fraude | HTTP REST interne via `/v1/audit/*` ; service prévu, URL à configurer |
+| `free5GC core` | Provisionnement réseau 5G, attachement UE/gNB simulé et état des sessions réseau | Interface technique appelée par l’adapter d’activation de `line-service`; hors routage public du gateway |
 
 La configuration maintient le couplage faible entre le gateway et les services : `IDENTITY_SERVICE_URL`, `ORDER_SERVICE_URL`, `CATALOG_SERVICE_URL`, `CUSTOMERS_SERVICE_URL`, `BILLING_SERVICE_URL` et `AUDIT_SERVICE_URL` peuvent changer sans modifier le code applicatif. Quand une famille de routes est connue mais que son URL est vide, le gateway retourne `503`; quand l’URL existe mais que le service ne répond pas, il retourne `502`.
 
@@ -1082,13 +1090,24 @@ Le niveau 2 zoome sur les blocs critiques de la vue 5.1. Les services métier su
 *Diagramme SVG : `diagrams/plantuml/level2/order-service-5-2.svg`.*
 
 - **Domaine** : `Order`, `OrderItem`, `IdempotencyKey`.
-- **Ports primaires** : `OrderController`, `ActivationController`.
-- **Ports secondaires** : `OrderRepository`, `CatalogClient`, `IdentityClient`, `BillingClient`, `AuditClient`, adapter HLR/HSS simulé.
-- **Invariants métier** : une clé d’idempotence ne crée qu’une commande logique, statut de commande contrôlé, offre vérifiée avant activation.
+- **Ports primaires** : `OrderController`, `ActivationRequestController`.
+- **Ports secondaires** : `OrderRepository`, `CatalogClient`, `IdentityClient`, `BillingClient`, `AuditClient`, `LineActivationPort`.
+- **Invariants métier** : une clé d’idempotence ne crée qu’une commande logique, statut de commande contrôlé, offre vérifiée avant demande d’activation, aucun appel direct à free5GC.
 
-### 5.2.4 Whitebox de `catalog-service`
+### 5.2.4 Whitebox de `line-service`
 
-![Figure 5.2.4 — Whitebox catalog-service](diagrams/plantuml/level2/catalog-service-5-2.svg)
+![Figure 5.2.4 — Whitebox line-service](diagrams/plantuml/level2/line-service-5-2.svg)
+
+*Diagramme SVG : `diagrams/plantuml/level2/line-service-5-2.svg`.*
+
+- **Domaine** : `MobileLine`, `SimProfile`, `NetworkSession`, `ActivationRequest`.
+- **Ports primaires** : `LineController`, `LineActivationController`.
+- **Ports secondaires** : `LineRepository`, `Free5gcPort`, `AuditPort`, `IdentityPort`.
+- **Invariants métier** : MSISDN/SUPI uniques, activation idempotente, passage à `ACTIVE` seulement après confirmation free5GC ou simulation documentée.
+
+### 5.2.5 Whitebox de `catalog-service`
+
+![Figure 5.2.5 — Whitebox catalog-service](diagrams/plantuml/level2/catalog-service-5-2.svg)
 
 *Diagramme SVG : `diagrams/plantuml/level2/catalog-service-5-2.svg`.*
 
@@ -1097,9 +1116,9 @@ Le niveau 2 zoome sur les blocs critiques de la vue 5.1. Les services métier su
 - **Ports secondaires** : `OfferRepository`, cache catalogue, `AuditClient`.
 - **Invariants métier** : catalogue versionné, offre active pour être vendue, prix et règles d’éligibilité cohérents avec la version.
 
-### 5.2.5 Whitebox de `customers-service`
+### 5.2.6 Whitebox de `customers-service`
 
-![Figure 5.2.5 — Whitebox customers-service](diagrams/plantuml/level2/customers-service-5-2.svg)
+![Figure 5.2.6 — Whitebox customers-service](diagrams/plantuml/level2/customers-service-5-2.svg)
 
 *Diagramme SVG : `diagrams/plantuml/level2/customers-service-5-2.svg`.*
 
@@ -1108,9 +1127,9 @@ Le niveau 2 zoome sur les blocs critiques de la vue 5.1. Les services métier su
 - **Ports secondaires** : `CustomerRepository`, `IdentityClient`, `AuditClient`.
 - **Invariants métier** : le client métier est distinct de l’identité numérique, tout changement sensible de profil est auditable.
 
-### 5.2.6 Whitebox de `billing-service`
+### 5.2.7 Whitebox de `billing-service`
 
-![Figure 5.2.6 — Whitebox billing-service](diagrams/plantuml/level2/billing-service-5-2.svg)
+![Figure 5.2.7 — Whitebox billing-service](diagrams/plantuml/level2/billing-service-5-2.svg)
 
 *Diagramme SVG : `diagrams/plantuml/level2/billing-service-5-2.svg`.*
 
@@ -1119,9 +1138,9 @@ Le niveau 2 zoome sur les blocs critiques de la vue 5.1. Les services métier su
 - **Ports secondaires** : `BillingRepository`, `UsageProvider`, passerelle de paiement, `AuditClient`.
 - **Invariants métier** : paiement appliqué une seule fois, facture rattachée à une période, écriture de facturation exactly-once.
 
-### 5.2.7 Whitebox de `audit-service`
+### 5.2.8 Whitebox de `audit-service`
 
-![Figure 5.2.7 — Whitebox audit-service](diagrams/plantuml/level2/audit-service-5-2.svg)
+![Figure 5.2.8 — Whitebox audit-service](diagrams/plantuml/level2/audit-service-5-2.svg)
 
 *Diagramme SVG : `diagrams/plantuml/level2/audit-service-5-2.svg`.*
 
@@ -1142,7 +1161,7 @@ Le diagramme suivant présente les principales abstractions du domaine CanTelcoX
 |--------------------|----------------------------------------|-------------------------|------------------------|
 | `IdentityAccount` | `Credential`, MFA | `identity-service` | Identifiant unique; MFA requis pour les opérations sensibles; compte verrouillable après échecs répétés. |
 | `Customer` | `ContactInfo`, `Address`, `Consent` | `customers-service` | Client métier distinct de l’identité numérique; consentements et changements sensibles auditables. |
-| `MobileLine` | `MSISDN`, offre souscrite | `order-service` ou futur `line-service` | MSISDN unique; activation contrôlée; une ligne active référence une offre admissible. |
+| `MobileLine` | `MSISDN`, `SimProfile`, `NetworkSession`, offre souscrite | `line-service` | MSISDN/SUPI uniques; activation contrôlée; une ligne active référence une offre admissible et un profil réseau provisionné dans free5GC. |
 | `Offer` | `Plan`, `Price`, `EligibilityRule`, version de catalogue | `catalog-service` | Offre active pour être vendue; prix et règles cohérents avec la version référencée par la commande. |
 | `Order` | `OrderItem`, `IdempotencyKey` | `order-service` | Une clé d’idempotence ne produit qu’un effet métier; une commande référence une offre versionnée. |
 | `Invoice` | `UsageRecord`, `Payment` | `billing-service` | Facture rattachée à une période; paiement appliqué une seule fois; écriture de facturation exactly-once. |
@@ -1195,6 +1214,7 @@ Ce scénario nominal illustre le parcours principal attendu : inscription du cli
 **Préconditions :**
 
 - Les URLs `IDENTITY_SERVICE_URL`, `CATALOG_SERVICE_URL`, `ORDER_SERVICE_URL`, `BILLING_SERVICE_URL` et `AUDIT_SERVICE_URL` sont configurées.
+- L’adapter free5GC de `line-service` est configuré avec l’adresse du coeur 5G de laboratoire et les paramètres réseau nécessaires (SUPI/SIM, DNN, slice).
 - Le client peut joindre l’API Gateway.
 - Les services amont exposent les endpoints métier illustrés.
 
@@ -1202,6 +1222,7 @@ Ce scénario nominal illustre le parcours principal attendu : inscription du cli
 
 - Le gateway relaie les appels sans porter la logique métier.
 - `order-service` conserve la clé `Idempotency-Key` pour éviter une double création de commande.
+- L’appel free5GC reste interne à `line-service`; le client, le gateway et `order-service` ne manipulent pas directement les fonctions réseau 5G.
 - Les opérations sensibles sont tracées par `audit-service`.
 - La consultation d’usage dépend de `billing-service`, qui reste à configurer dans le MVP actuel.
 
@@ -1266,21 +1287,24 @@ Machine gateway
 Tailnet / VM-LXC
   identity-service  http://100.83.57.43:8020
   order-service     http://100.108.225.1:8030
+  line-service      adresse Tailnet/LXC à renseigner, port cible 8080
   catalog-service   http://100.95.65.46:8040
   customers-service http://100.99.167.126:8050
   billing-service   http://100.114.185.38:8060
   audit-service     http://100.94.161.70:8070
+  free5gc-core      adresse Tailnet/LXC à renseigner
   observability     http://100.87.177.66
 ```
 
 Le mode `host` permet au conteneur gateway d’utiliser la connectivité réseau de la machine hôte, notamment vers Tailscale/Tailnet.
-Les conteneurs `customers-service`, `billing-service` et `audit-service` sont maintenant présents sur le Tailnet; leurs applications restent à déployer et à démarrer sur les ports indiqués.
+Les conteneurs `customers-service`, `billing-service` et `audit-service` sont maintenant présents sur le Tailnet; leurs applications restent à déployer et à démarrer sur les ports indiqués. `line-service` est ajouté comme cible prévue pour les lignes et activations.
+Le coeur free5GC est déployé comme voisin réseau spécialisé : il n’est pas exposé par le gateway public, mais consommé par l’adapter d’activation de `line-service` pour provisionner les informations SIM/SUPI/DNN/slice et vérifier l’attachement 5G en laboratoire.
 
 ## 7.2 API Gateway
 
 | **Capacité Gateway**           | **Configuration**                                        |
 |--------------------------------|----------------------------------------------------------|
-| Routage dynamique              | Table `ROUTE_TARGETS` : `users/auth`, `orders`, `catalog`, `customers`, `billing`, `audit` |
+| Routage dynamique              | Table `ROUTE_TARGETS` : `users/auth`, `orders`, `lines`, `catalog`, `customers`, `billing`, `audit` |
 | En-têtes / clé API             | Headers transmis sauf hop-by-hop; clé API/rate limiting à ajouter |
 | CORS                           | Regex locale : `localhost`, `127.0.0.1`, `10.0.2.2`, `192.168.x.x` |
 | Produit retenu                 | Gateway maison FastAPI, point d’entrée unique des appels API |
@@ -1333,7 +1357,7 @@ Le gateway ne possède pas de persistance métier. Il est stateless et lit sa co
 
 ## 8.2 Idempotence (commandes & activations)
 
-Le gateway préserve les headers applicatifs et peut donc transporter une `Idempotency-Key` vers `order-service` ou un service d’activation. La portée cible est par client, route et opération sensible, avec stockage côté service applicatif. Le comportement attendu est de retourner le résultat logique déjà produit lors d’une double soumission, sans créer de nouvelle commande ou activation. Le stockage, la fenêtre de rejeu et les tests restent à implémenter côté service métier.
+Le gateway préserve les headers applicatifs et peut donc transporter une `Idempotency-Key` vers `order-service` pour les commandes ou `line-service` pour les activations. La portée cible est par client, route et opération sensible, avec stockage côté service applicatif. Le comportement attendu est de retourner le résultat logique déjà produit lors d’une double soumission, sans créer de nouvelle commande ou activation. Le stockage, la fenêtre de rejeu et les tests restent à implémenter côté service métier.
 
 ## 8.3 Exactly-once (facturation)
 
@@ -1370,7 +1394,9 @@ Le versionnement `/v1` est en place. Le gateway retourne `404` pour une famille 
 | Erreurs           | `api_gateway_http_requests_total{status=~"4..|5.."}` | Seuil cible recommandé < 1 % hors tests négatifs |
 | Saturation        | `api_gateway_http_requests_in_progress`, métriques `process_*`, Node Exporter | Seuil cible recommandé < 80 % CPU/RAM en nominal |
 
-Le gateway expose maintenant `/metrics` au format Prometheus et journalise les requêtes en JSON avec `trace_id`, méthode, chemin, route, statut, durée et client. Le header `X-Trace-Id` est retourné au client et propagé vers le service amont. Les dashboards Grafana et les captures restent à finaliser au §10.5 dans la pile d'observabilité dédiée.
+Le gateway expose maintenant `/metrics` au format Prometheus et journalise les requêtes en JSON avec `trace_id`, méthode, chemin, route, statut, durée et client. Le header `X-Trace-Id` est retourné au client et propagé vers le service amont. Les métriques applicatives du gateway sont visibles dans Grafana via `api_gateway_http_requests_total`, `api_gateway_http_request_duration_seconds` et `api_gateway_http_requests_in_progress`.
+
+Les captures Grafana produites le 2026-06-30 confirment les quatre signaux sur la fenêtre observée : latence P95/P99 des sondes `/health`, disponibilité `UP` des services supervisés, trafic applicatif du gateway, erreurs 4xx/5xx générées par scénario négatif, et saturation CPU/RAM/réseau de services. Le détail et les figures sont intégrés au §10.5.
 
 ## 8.9 Caching
 
@@ -1455,6 +1481,7 @@ Non implémenté dans le gateway actuel. Candidats : catalogue de forfaits (`/v1
 | 3 | Disponibilité | Diagnostiquer un service indisponible | `/health`, `/routes`, erreurs `502/503` |
 | 4 | Observabilité | Suivre santé et signaux applicatifs | Blackbox Exporter existant; `/metrics` gateway ajouté |
 | 5 | Sécurité/auditabilité | Protéger opérations sensibles | CORS local en place; auth/MFA/audit à finaliser |
+| 6 | Intégration réseau 5G | Activer une ligne et vérifier l’état réseau | Adapter free5GC côté `line-service`; scénario E2E à instrumenter |
 
 ## 10.2 Scénarios de qualité
 
@@ -1464,17 +1491,18 @@ Non implémenté dans le gateway actuel. Candidats : catalogue de forfaits (`/v1
 | Capacité                  | Montée en charge                            | ≥ 600 ops/s avant saturation      |
 | Disponibilité             | Kill d’une instance en charge               | Maintien de 95 % de disponibilité |
 | Sécurité                  | Opération sensible sans MFA                 | Refus + journalisation            |
+| Intégration free5GC       | Activation d’une ligne après commande       | Profil SIM/SUPI provisionné; état réseau retourné ou erreur explicite |
 | Maintenabilité            | Changement d’adresse `identity-service`     | Mise à jour `.env` sans changement de code |
 
 ## 10.3 Cibles NFR & résultats
 
 | **Indicateur** | **Cible**   | **Mesuré**            | **Verdict**                   |
 |----------------|-------------|-----------------------|-------------------------------|
-| Latence P95    | ≤ 500 ms    | Non mesuré dans le dépôt | À faire |
-| Débit          | ≥ 600 ops/s | Non mesuré dans le dépôt | À faire |
-| Disponibilité  | 95 %        | Non mesuré dans le dépôt | À faire |
+| Latence P95    | ≤ 500 ms    | P95 gateway `/health` : 6,01 ms; P95 catalog : 4,44 ms; P95 identity : 5,40 ms; P95 order : 5,84 ms | Atteint sur les sondes `/health` observées |
+| Débit          | ≥ 600 ops/s | Dernière valeur Grafana gateway : 3,64 req/s; campagne k6 catalogue via gateway : 19,46 req/s | Non atteint / non testé jusqu'au seuil cible |
+| Disponibilité  | 95 %        | `api-gateway`, `catalog-service`, `order-service` et `identity-service` affichés `UP` | Atteint sur la fenêtre de capture |
 
-Synthèse ; le détail des mesures et les captures figurent aux §10.5 à §10.8.
+Synthèse : la latence et la disponibilité observées sont conformes aux cibles sur la fenêtre mesurée. Le débit de 600 ops/s n'est pas démontré par les captures actuelles; les campagnes de charge plus poussées restent à produire pour conclure sur la capacité maximale. Le détail des mesures et les captures figurent aux §10.5 à §10.8.
 
 ## 10.4 Stratégie de tests & couverture
 
@@ -1494,7 +1522,64 @@ Scénarios k6/JMeter/Artillery — stress progressif jusqu’au seuil de saturat
 | UC-02 — Authentification MFA | Non mesuré | Non mesuré | Non mesuré |
 | UC-08 — Facturation          | Non mesuré | Non mesuré | Non mesuré |
 
-Captures Grafana et courbes de charge à produire après raccordement de `/metrics` dans Prometheus et campagne k6/JMeter/Artillery.
+### 10.5.1 Campagne k6 catalogue via gateway
+
+La première campagne de charge exploitable porte sur le trajet `client -> api-gateway -> catalog-service`, avec 20 utilisateurs virtuels pendant 1 minute sur `/v1/catalog/plans`.
+
+![Resultat k6 catalogue via gateway](captures/k6/c03-k6-catalog-gateway.png)
+
+**Figure 10.5-0 — Résultat k6 catalogue via gateway.** Le test termine sans interruption : 1187 requêtes, 19,46 req/s, 100 % de checks réussis, 0,00 % d'erreurs HTTP, durée moyenne 17,71 ms, P90 45,36 ms, P95 50,26 ms et maximum 54,42 ms. Les seuils k6 configurés sont respectés (`p(95)<500` et `http_req_failed<1 %`).
+
+| **Campagne** | **Charge** | **Requêtes** | **RPS** | **P90** | **P95** | **Max** | **Erreurs** | **Verdict** |
+|--------------|------------|--------------|---------|---------|---------|---------|-------------|-------------|
+| Catalogue via gateway | 20 VUs, 1 min | 1187 | 19,46 req/s | 45,36 ms | 50,26 ms | 54,42 ms | 0,00 % | Latence conforme; capacité 600 ops/s non démontrée |
+
+Cette campagne valide le bon comportement du gateway sous une charge modérée et fournit une preuve chiffrée pour la latence applicative. Elle ne constitue pas encore un test de saturation : il faudra augmenter progressivement le nombre de VUs ou le taux d'arrivée pour établir le seuil de capacité réel.
+
+### 10.5.2 Observabilité Grafana - 4 Golden Signals
+
+Les captures suivantes proviennent de Prometheus et du dashboard Grafana "CanTelcoX Observabilite applicative et infra". Elles constituent les preuves d'observabilité de la Phase 1 et complètent les campagnes de charge k6 : elles montrent le scrape `/metrics`, l'état des sondes, les métriques gateway et la saturation de quelques services raccordés.
+
+![Prometheus Targets gateway UP](captures/prometheus/c02-prometheus-targets-gateway-up.png)
+
+**Figure 10.5-1 — Prometheus Targets gateway.** Prometheus scrape directement `http://100.85.152.43:8000/metrics` avec l'état `UP` pour le job `api-gateway`. La sonde Blackbox HTTP vérifie aussi `http://100.85.152.43:8000/health` avec l'état `UP`. Les durées visibles sont de 10,437 ms pour le scrape `/metrics` et 5,830 ms pour la sonde `/health`.
+
+![Latence P95/P99 des sondes /health](captures/grafana/c01-latence-p95-p99-health.png)
+
+**Figure 10.5-2 — Latence P95/P99 des sondes `/health`.** La latence observée reste très inférieure à la cible de 500 ms : P95 gateway 6,01 ms, P99 gateway 7,33 ms, P95 catalog 4,44 ms, P95 identity 5,40 ms et P95 order 5,84 ms.
+
+![Disponibilite /health des services supervises](captures/grafana/c02-disponibilite-health-up.png)
+
+**Figure 10.5-3 — Disponibilité `/health`.** Les services `catalog-service`, `api-gateway`, `order-service` et `identity-service` sont affichés `UP` sur la fenêtre de capture, ce qui valide la connectivité de base entre l'environnement d'observabilité et les services supervisés.
+
+![RPS applicatif gateway](captures/grafana/c06-rps-applicatif-gateway.png)
+
+**Figure 10.5-4 — Trafic applicatif gateway.** Le panneau RPS est alimenté par `sum(rate(api_gateway_http_requests_total[5m]))`. La dernière valeur visible est 3,64 req/s après génération de trafic; cette mesure prouve le raccordement applicatif mais ne démontre pas encore la cible de 600 ops/s.
+
+![Erreurs 4xx/5xx gateway](captures/grafana/c05-erreurs-4xx-5xx-gateway.png)
+
+**Figure 10.5-5 — Erreurs 4xx/5xx gateway.** Un scénario négatif sur une route inconnue `/v1/inconnu/test` génère un pic d'environ 0,9 req/s d'erreurs, puis un retour à 0 req/s. Le panneau utilise `api_gateway_http_requests_total{status=~"4..|5.."}` et confirme la visibilité des erreurs applicatives.
+
+![Saturation CPU/RAM](captures/grafana/c03-saturation-cpu-ram.png)
+
+**Figure 10.5-6 — Saturation CPU/RAM.** La CPU reste basse sur la fenêtre observée (`identity-service` 6,20 %, `order-service` 6,21 %). La RAM est en revanche élevée, à 90,6 % pour `identity-service` et `order-service`, au-dessus du seuil recommandé de 80 %. Ce point est traité comme un écart à surveiller plutôt qu'une cible atteinte.
+
+![Saturation reseau](captures/grafana/c04-saturation-reseau.png)
+
+**Figure 10.5-7 — Saturation réseau.** Les dernières valeurs visibles sont stables : entrée `identity-service` 4,06 kb/s, entrée `order-service` 3,61 kb/s, sortie `identity-service` 28,3 kb/s et sortie `order-service` 27,9 kb/s. Aucun pic réseau significatif n'est observé sur cette fenêtre.
+
+### 10.5.3 Analyse des résultats observés
+
+| **Signal** | **Mesure observée** | **Interprétation** |
+|------------|---------------------|--------------------|
+| Latence | P95 gateway `/health` 6,01 ms; P99 gateway 7,33 ms | Conforme à la cible P95 ≤ 500 ms pour les sondes de santé |
+| Trafic | Gateway à 3,64 req/s en dernière valeur visible | Raccordement validé; capacité cible ≥ 600 ops/s non démontrée |
+| Erreurs | Pic 4xx/5xx autour de 0,9 req/s lors du test négatif | Les erreurs sont visibles et exploitables dans Grafana |
+| Saturation CPU | Environ 6,2 % sur `identity-service` et `order-service` | Conforme sur la fenêtre observée |
+| Saturation RAM | 90,6 % sur `identity-service` et `order-service` | Écart par rapport au seuil recommandé < 80 %; à investiguer |
+| Saturation réseau | Sortie autour de 28 kb/s; entrée autour de 4 kb/s | Stable et faible sur la fenêtre observée |
+
+Ces captures valident le raccordement d'observabilité applicative et infrastructurelle. Elles ne remplacent pas les campagnes de charge complètes : les mesures UC-03/04/05/08 à haut débit, N = 2..4, kill d'instance, cache on/off et direct vs gateway restent documentées comme travaux de mesure à compléter aux §10.6 à §10.8.
 
 ## 10.6 Load balancing (N = 1..4) & tolérance aux pannes
 
@@ -1502,14 +1587,32 @@ Portée de démonstration : `catalog-service` comme service pilote. Ce choix cou
 
 | **N instances** | **RPS** | **P95 (ms)** | **Erreurs** | **Saturation** |
 |-----------------|---------|--------------|-------------|----------------|
-| 1               | 19,85 req/s | 9,91 | 0,00 % | Non mesurée |
-| 2               | Non mesuré | Non mesuré | Non mesuré | Non mesuré |
-| 3               | Non mesuré | Non mesuré | Non mesuré | Non mesuré |
-| 4               | Non mesuré | Non mesuré | Non mesuré | Non mesuré |
+| 1               | 19,39 req/s | 55,9 | 0,00 % | Non mesurée |
+| 2               | 19,51 req/s | 38,8 | 0,00 % | Non mesurée |
+| 3               | 19,42 req/s | 74,84 | 0,00 % | Non mesurée |
+| 4               | 19,53 req/s | 41,72 | 0,00 % | Non mesurée |
 
-Mesure N = 1 réalisée via `k6 run tests/load/catalog-through-gateway.js` sur le trajet `client -> gateway -> HAProxy -> catalog-service`, avec 20 VUs pendant 1 minute, 1 200 requêtes, 100 % de checks réussis, P90 = 8,16 ms, P95 = 9,91 ms, maximum = 56,89 ms et 0 % d'erreurs HTTP.
+Mesures réalisées via `k6 run tests/load/catalog-through-gateway.js` sur le trajet `client -> gateway -> HAProxy -> catalog-service`, avec 20 VUs pendant 1 minute. Les instances catalogue additionnelles ont été démarrées sur `100.95.65.46:8140`, `100.95.65.46:8240` et `100.95.65.46:8340`, puis activées progressivement dans `infra/load-balancer/haproxy/catalog.cfg`.
 
-*Tolérance aux pannes (kill d’instance en charge) : à démontrer sur `catalog-service` après lancement des instances N = 2..4.*
+![Load balancing N=1](captures/k6-load-balancing/c03-lb-n1-reference.png)
+
+**Figure 10.6-1 — Load balancing catalogue N=1.** 1183 requêtes, 19,39 req/s, 100 % de checks réussis, 0,00 % d'erreurs HTTP, P90 35,22 ms, P95 55,9 ms et maximum 155,58 ms.
+
+![Load balancing N=2](captures/k6-load-balancing/c04-lb-n2.png)
+
+**Figure 10.6-2 — Load balancing catalogue N=2.** 1190 requêtes, 19,51 req/s, 100 % de checks réussis, 0,00 % d'erreurs HTTP, P90 31,15 ms, P95 38,8 ms et maximum 54,01 ms.
+
+![Load balancing N=3](captures/k6-load-balancing/c05-lb-n3.png)
+
+**Figure 10.6-3 — Load balancing catalogue N=3.** 1184 requêtes, 19,42 req/s, 100 % de checks réussis, 0,00 % d'erreurs HTTP, P90 43,38 ms, P95 74,84 ms et maximum 124,89 ms.
+
+![Load balancing N=4](captures/k6-load-balancing/c06-lb-n4.png)
+
+**Figure 10.6-4 — Load balancing catalogue N=4.** 1189 requêtes, 19,53 req/s, 100 % de checks réussis, 0,00 % d'erreurs HTTP, P90 31,97 ms, P95 41,72 ms et maximum 51,34 ms.
+
+La comparaison N = 1..4 valide le patron HAProxy et l'absence d'erreurs lors de l'ajout progressif d'instances. Comme la campagne garde la même charge fixe de 20 VUs avec une pause d'une seconde dans le script k6, le RPS reste mécaniquement autour de 19,4 à 19,5 req/s; ces mesures démontrent surtout la stabilité et la latence sous charge nominale, pas le seuil de saturation maximal. Pour mesurer un gain de capacité, il faudra une campagne avec montée progressive de VUs ou taux d'arrivée constant plus élevé.
+
+*Tolérance aux pannes (kill d’instance en charge) : à démontrer sur `catalog-service` avec N ≥ 2 en arrêtant une instance pendant une campagne k6.*
 
 ## 10.7 Caching (on / off)
 
@@ -1566,12 +1669,14 @@ Mesure N = 1 réalisée via `k6 run tests/load/catalog-through-gateway.js` sur l
 |-----------------------|--------------------------------------------------------------------|
 | BSS                   | Business Support System                                            |
 | CRTC                  | Conseil de la radiodiffusion et des télécommunications canadiennes |
-| HLR/HSS               | Home Location Register / Home Subscriber Server                    |
+| free5GC               | Coeur réseau 5G open source utilisé pour le laboratoire            |
 | MSISDN                | Mobile Station International Subscriber Directory Number           |
 | MFA / OTP             | Authentification multifacteur / mot de passe à usage unique        |
 | NFR                   | Exigence non fonctionnelle                                         |
+| SUPI                  | Subscription Permanent Identifier                                  |
 | **ADR**               | Architecture Decision Record                                       |
 | TMF                   | TM Forum (Open APIs)                                               |
+| UERANSIM              | Simulateur gNB/UE pour scénarios d’accès 5G                        |
 | API Gateway           | Point d’entrée HTTP unique qui route vers les microservices internes |
 | LXC                   | Conteneur système pouvant héberger des services laboratoire |
 | Tailnet               | Réseau privé Tailscale reliant les VM/LXC |
@@ -1585,6 +1690,8 @@ Référez le fichier OpenAPI/Swagger publié et la collection Postman (chemins d
 | `POST /v1/users/*` ou endpoint précis du service identité | UC-01 | `identity-service` | À préciser côté service |
 | `POST /v1/auth/*` | UC-02 | `identity-service` | MFA côté service identité |
 | `POST /v1/orders/*` | UC-03 / UC-05 | `order-service` | MFA/idempotence à préciser |
+| `POST /v1/lines/activations` | UC-03 | `line-service` | MFA/idempotence/free5GC à préciser |
+| `GET /v1/lines/*` | UC-03 / UC-04 | `line-service` | Selon politique d’accès |
 | `GET /v1/catalog/*` | UC-05 | `catalog-service` | Selon politique d’accès |
 | `GET /v1/billing/*` | UC-04 / UC-06 / UC-08 | `billing-service` | Auth requise; service à configurer |
 | `POST /v1/audit/*` | UC-07 / conformité | `audit-service` | Service interne; à configurer |
@@ -1935,7 +2042,7 @@ Durée : 12 à 15 minutes de présentation + questions. Objectif : démontrer qu
 
 |                                  |                                                                                            |
 |----------------------------------|--------------------------------------------------------------------------------------------|
-| **Scénario E2E démontré**        | Minimal actuel : `/health`, `/routes`, proxy `/v1/orders/*` ou `/v1/auth/*`; cible : inscription → MFA → activation → souscription → consultation usage |
+| **Scénario E2E démontré**        | Minimal actuel : `/health`, `/routes`, proxy `/v1/orders/*`, `/v1/lines/*` ou `/v1/auth/*`; cible : inscription → MFA → commande → activation line-service/free5GC → consultation usage |
 | **ADR défendu**                  | ADR-0002 API Gateway ou ADR-0006 Tailscale, selon la démo réseau |
 | **Répartition des intervenants** | À compléter par l’équipe |
 | **Environnement de démo**        | VM/LXC + Tailnet; `docker compose up --build`; services amont configurés dans `.env` |
@@ -1952,6 +2059,7 @@ Durée : 12 à 15 minutes de présentation + questions. Objectif : démontrer qu
 | Table de routage observable | `GET /routes` |
 | Routage `/v1/users/*` et `/v1/auth/*` | `ROUTE_TARGETS`, `IDENTITY_SERVICE_URL` |
 | Routage `/v1/orders/*` | `ROUTE_TARGETS`, `ORDER_SERVICE_URL` |
+| Routage `/v1/lines/*` | `ROUTE_TARGETS`, `LINE_SERVICE_URL` |
 | Routage `/v1/catalog/*` | `ROUTE_TARGETS`, `CATALOG_SERVICE_URL` |
 | Routes préparées `/v1/customers/*`, `/v1/billing/*`, `/v1/audit/*` | `ROUTE_TARGETS`, variables d’environnement |
 | Erreurs gateway `404/502/503` | `app/main.py` |
@@ -1967,7 +2075,7 @@ Durée : 12 à 15 minutes de présentation + questions. Objectif : démontrer qu
 | **Priorité** | **Travail restant** |
 |--------------|---------------------|
 | Haute | Compléter les ADR 0001 à 0004 avec statut, contexte, décision, conséquences et conformité |
-| Haute | Implémenter ou brancher les services manquants `customers-service`, `billing-service`, `audit-service` |
+| Haute | Implémenter ou brancher les services manquants `line-service`, `customers-service`, `billing-service`, `audit-service` |
 | Haute | Décrire et tester au moins 5 UC Must bout-en-bout via le gateway |
 | Haute | Normaliser le format d’erreur JSON inter-services avec `traceId` |
 | Haute | Ajouter les tests automatisés gateway et E2E; viser ≥ 80 % sur le domaine critique |

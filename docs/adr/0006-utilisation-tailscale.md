@@ -12,6 +12,15 @@ Sans mécanisme réseau privé, il faudrait exposer les services sur Internet, c
 
 Le projet utilise aussi des VM/LXC dans un contexte de laboratoire. L'équipe possède déjà une expérience récente avec ces environnements et a besoin d'un accès direct aux machines à tout moment pour tester, diagnostiquer et superviser les services.
 
+## Options considérées
+
+| Option | Exemple | Avantages | Inconvénients |
+| --- | --- | --- | --- |
+| Exposer les services sur Internet | Ouvrir `8020`, `8030`, `8040`, etc. avec des règles pare-feu publiques | Accès direct depuis le frontend ou les outils de test | Surface d'attaque plus large, configuration sécurité plus lourde, peu souhaitable pour des services internes |
+| Réseau local/LAN seulement | Utiliser des adresses privées du laboratoire comme `192.168.x.x` ou `10.x.x.x` | Simple si toutes les machines restent sur le même réseau | Accès fragile hors LAN, dépendance au réseau physique, diagnostic à distance plus difficile |
+| VPN traditionnel auto-hébergé | Déployer WireGuard ou OpenVPN avec configuration manuelle des pairs | Contrôle complet, réseau chiffré | Configuration et rotation des accès plus lourdes pour le laboratoire |
+| Tailscale Tailnet | Chaque VM/LXC reçoit une adresse `100.x` utilisée par le gateway et l'observabilité | Mise en place rapide, WireGuard géré, accès privé stable entre machines | Dépend de Tailscale et de la bonne gestion des appareils autorisés |
+
 ## Décision
 
 Utiliser Tailscale pour relier les VM/LXC du laboratoire dans un réseau privé appelé Tailnet.

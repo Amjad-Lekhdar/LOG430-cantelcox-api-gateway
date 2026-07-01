@@ -22,7 +22,7 @@ Derniere mise a jour: 23 juin 2026.
 
 | ID | Epic | Priorite | Statut | Resultat attendu |
 | --- | --- | --- | --- | --- |
-| B-01 | ADR et decisions d'architecture | P0 | En cours | ADR complets, traçables au cahier de charge |
+| B-01 | ADR et decisions d'architecture | P0 | Fait | ADR complets, traçables au cahier de charge |
 | B-02 | Documentation Arc42 et 4+1 | P0 | En cours | Documentation finale coherente avec l'etat reel du systeme |
 | B-03 | Cas d'utilisation Must | P0 | Fait | 5 UC Must decrits et relies aux services |
 | B-04 | Tests automatises du gateway | P0 | Fait | Tests unitaires pour les routes critiques du gateway |
@@ -45,16 +45,16 @@ Derniere mise a jour: 23 juin 2026.
 ## B-01 - Completer les ADR
 
 Priorite: P0  
-Statut: En cours
+Statut: Fait
 
 ### Taches
 
-- [ ] Completer `docs/adr/0001-architecture-microservices.md`.
-- [ ] Completer `docs/adr/0002-api-gateway.md`.
-- [ ] Completer `docs/adr/0003-database-per-service.md`.
-- [ ] Completer `docs/adr/0004-idempotence-audit-billing.md`.
-- [ ] Harmoniser les statuts, dates, decideurs et consequences.
-- [ ] Verifier que chaque ADR reference une exigence du cahier de charge.
+- [x] Completer `docs/adr/0001-architecture-microservices.md`.
+- [x] Completer `docs/adr/0002-api-gateway.md`.
+- [x] Completer `docs/adr/0003-database-per-service.md`.
+- [x] Completer `docs/adr/0004-idempotence-audit-billing.md`.
+- [x] Harmoniser les statuts, dates, decideurs et consequences.
+- [x] Verifier que chaque ADR reference une exigence du cahier de charge.
 
 ### Criteres d'acceptation
 

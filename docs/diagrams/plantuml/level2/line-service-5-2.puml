@@ -1,0 +1,33 @@
+@startuml line-service-5-2
+title line-service - Hexagonal Architecture cible
+
+left to right direction
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam linetype ortho
+skinparam rectangle {
+  RoundCorner 8
+}
+
+rectangle "Clients
+REST Client\nActivation Flow\nOrder Client" as Clients #FFF7ED
+rectangle "Interface Adapters
+LineController\nActivationController" as Controllers #DBEAFE
+hexagon "Business Model
+MobileLine\nSimProfile\nNetworkSession\nActivationRequest
+
+Dependencies go inwards" as Domain #FFF2C6
+rectangle "Ports
+LineRepository\nFree5gcPort\nAuditPort" as Ports #F8FAFC
+rectangle "Infrastructure Adapters
+PostgreSQL Adapter\nfree5GC Adapter\nAuditClient" as Adapters #DBEAFE
+rectangle "Data Sources / External Systems
+Lines DB\nfree5GC core\naudit-service" as Targets #F8FAFC
+
+Clients --> Controllers
+Controllers --> Domain
+Domain --> Ports
+Ports --> Adapters
+Adapters --> Targets
+@enduml

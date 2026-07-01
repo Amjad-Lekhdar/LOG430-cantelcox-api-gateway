@@ -1,57 +1,82 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="583px" preserveAspectRatio="none" style="width:677px;height:583px;" version="1.1" viewBox="0 0 677 583" width="677px" zoomAndPan="magnify"><defs/><g><text fill="#000000" font-family="Arial" font-size="18" lengthAdjust="spacingAndGlyphs" textLength="284" x="200" y="19.2419">Whitebox API Gateway - Niveau 2</text><!--MD5=[20739893a3f680369e2b8e6f2c345f86]
-cluster API Gateway--><polygon fill="#DCFCE7" points="22,48.5158,116,48.5158,123,73.5838,441,73.5838,441,571.5158,22,571.5158,22,48.5158" style="stroke: #000000; stroke-width: 1.5;"/><line style="stroke: #000000; stroke-width: 1.5;" x1="22" x2="123" y1="73.5838" y2="73.5838"/><text fill="#000000" font-family="Arial" font-size="14" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="88" x="26" y="65.4818">API Gateway</text><!--MD5=[a88daa769981030d98eed5c15618f282]
-entity In--><rect fill="#BBF7D0" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="141" x="159.5" y="86.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="121" x="169.5" y="111.4818">Adapters d'entree</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="96" x="169.5" y="130.5497">FastAPI / HTTP</text><!--MD5=[7a980fe5388f2c0b48dbfb0a8ec1f254]
-entity Routing--><rect fill="#E0F2FE" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="132" x="164" y="223.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="56" x="174" y="248.4818">Routage</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="112" x="174" y="267.5497">ROUTE_TARGETS</text><!--MD5=[7434fc19771e0f66f8659a4e95695800]
-entity Proxy--><rect fill="#E0F2FE" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="235" x="38.5" y="360.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="74" x="48.5" y="385.4818">Proxy HTTP</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="215" x="48.5" y="404.5497">preserve methode, corps, query</text><!--MD5=[2c8113cc364a23b9ee674e814acb7abf]
-entity Config--><rect fill="#FEF3C7" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="116" x="309" y="360.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="93" x="319" y="385.4818">Configuration</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="96" x="319" y="404.5497">Settings / .env</text><!--MD5=[bae64a0f682721a45e86ef5e026fef12]
-entity Errors--><rect fill="#FEE2E2" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="125" x="63.5" y="497.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="105" x="73.5" y="522.4818">Gestion erreurs</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="98" x="73.5" y="541.5497">404 / 503 / 502</text><!--MD5=[547e150f78d6a205ac455f605e672411]
-entity Headers--><rect fill="#F1F5F9" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="113" x="223.5" y="497.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="93" x="233.5" y="522.4818">Filtre headers</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="78" x="233.5" y="541.5497">hop-by-hop</text><!--MD5=[5ec0b7946e33da715c165993145a4ef4]
-entity Upstream--><rect fill="#E0F2FE" height="58.1358" rx="4" ry="4" style="stroke: #000000; stroke-width: 1.5;" width="193" x="457.5" y="497.5158"/><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="150" x="467.5" y="522.4818">Services metier amont</text><text fill="#000000" font-family="Arial" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="173" x="467.5" y="541.5497">identity, order, catalog, ...</text><!--MD5=[80698cd7321587f5df29e4be59f7913c]
-link In to Routing--><path d="M230,144.5658 C230,144.5658 230,218.5058 230,218.5058 " fill="none" id="In-&gt;Routing" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="230,223.5058,234,214.5058,230,218.5058,226,214.5058,230,223.5058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="75" x="231" y="189.4129">/v1/{service}</text><!--MD5=[dd362cee9c573bfa6a1bf40828eec53d]
-link Routing to Config--><path d="M284.75,281.5658 C284.75,321.7858 284.75,389.5158 284.75,389.5158 C284.75,389.5158 303.98,389.5158 303.98,389.5158 " fill="none" id="Routing-&gt;Config" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="308.98,389.5158,299.98,385.5158,303.98,389.5158,299.98,393.5158,308.98,389.5158" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="82" x="324" y="326.4129">lit URL amont</text><!--MD5=[d1aacf4ee717c90c2ce80a3075af8d4c]
-link Routing to Proxy--><path d="M218.75,281.5658 C218.75,281.5658 218.75,355.5058 218.75,355.5058 " fill="none" id="Routing-&gt;Proxy" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="218.75,360.5058,222.75,351.5058,218.75,355.5058,214.75,351.5058,218.75,360.5058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="71" x="175" y="326.4129">cible service</text><!--MD5=[d251dd5a3773a9ae1754af5b970f3cc4]
-link Proxy to Headers--><path d="M240.17,418.5658 C240.17,418.5658 240.17,492.5058 240.17,492.5058 " fill="none" id="Proxy-&gt;Headers" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="240.17,497.5058,244.17,488.5058,240.17,492.5058,236.17,488.5058,240.17,497.5058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="131" x="267" y="463.4129">filtre requete/reponse</text><!--MD5=[cf654bc1247ff9aaf025b93255461083]
-link Proxy to Errors--><path d="M126,418.5658 C126,418.5658 126,492.5058 126,492.5058 " fill="none" id="Proxy-&gt;Errors" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="126,497.5058,130,488.5058,126,492.5058,122,488.5058,126,497.5058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="84" x="134" y="463.4129">indisponibilite</text><!--MD5=[4de54d7aba583ba3478404aa04f6b687]
-link Proxy to Upstream--><path d="M256.83,418.7758 C256.83,437.5858 256.83,458.5158 256.83,458.5158 C256.83,458.5158 554,458.5158 554,458.5158 C554,458.5158 554,492.2858 554,492.2858 " fill="none" id="Proxy-&gt;Upstream" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="554,497.2858,558,488.2858,554,492.2858,550,488.2858,554,497.2858" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Arial" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="110" x="555" y="463.4129">HTTP REST interne</text><!--MD5=[2ed454fedd7fc679ab3b736a5df1262f]
-@startuml api-gateway-5-2
-title Whitebox API Gateway - Niveau 2
-
-top to bottom direction
-skinparam shadowing false
-skinparam backgroundColor #FFFFFF
-skinparam defaultFontName Arial
-skinparam packageStyle rectangle
-skinparam linetype ortho
-skinparam rectangle {
-  RoundCorner 8
-}
-
-package "API Gateway" #DCFCE7 {
-  rectangle "Adapters d'entree\nFastAPI / HTTP" as In #BBF7D0
-  rectangle "Routage\nROUTE_TARGETS" as Routing #E0F2FE
-  rectangle "Proxy HTTP\npreserve methode, corps, query" as Proxy #E0F2FE
-  rectangle "Configuration\nSettings / .env" as Config #FEF3C7
-  rectangle "Gestion erreurs\n404 / 503 / 502" as Errors #FEE2E2
-  rectangle "Filtre headers\nhop-by-hop" as Headers #F1F5F9
-}
-
-In - -> Routing : /v1/{service}
-Routing - -> Config : lit URL amont
-Routing - -> Proxy : cible service
-Proxy - -> Headers : filtre requete/reponse
-Proxy - -> Errors : indisponibilite
-
-rectangle "Services metier amont\nidentity, order, catalog, ..." as Upstream #E0F2FE
-Proxy - -> Upstream : HTTP REST interne
-@enduml
-
-PlantUML version 1.2020.02(Sun Mar 01 05:22:07 EST 2020)
-(GPL source distribution)
-Java Runtime: OpenJDK Runtime Environment
-JVM: OpenJDK 64-Bit Server VM
-Java Version: 21.0.11+10-1-24.04.2-Ubuntu
-Operating System: Linux
-Default Encoding: UTF-8
-Language: en
-Country: null
---></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1750" height="900" viewBox="0 0 1750 900">
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#111"/></marker><marker id="arrowStart" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M9,0 L9,6 L0,3 z" fill="#111"/></marker></defs>
+<rect width="100%" height="100%" fill="#FFF"/>
+<text x="875" y="48" text-anchor="middle" style="font-family:Arial;font-size:36px;font-weight:bold;fill:#000">api-gateway - Hexagonal Architecture</text>
+<polygon points="425,95 875,95 1085,450 875,805 425,805 215,450" fill="#ECECEC" stroke="#333" stroke-width="4"/>
+<polygon points="470,150 830,150 1000,450 830,750 470,750 300,450" fill="#F7F4E9" stroke="#333" stroke-width="4"/>
+<polygon points="515,235 785,235 910,450 785,665 515,665 390,450" fill="#FFF2C6" stroke="#B00000" stroke-width="4"/>
+<rect x="165" y="135" width="190" height="42" rx="6" fill="#FEF3C7" stroke="#333" stroke-width="1.5"/>
+<text x="260" y="162" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">Interface Layer</text>
+<rect x="555" y="135" width="205" height="42" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="657" y="162" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">Business Layer</text>
+<rect x="960" y="135" width="225" height="42" rx="6" fill="#FECACA" stroke="#B91C1C" stroke-width="1.5"/>
+<text x="1072" y="162" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">Infrastructure Layer</text>
+<text x="345" y="340" text-anchor="middle" style="font-family:Arial;font-size:28px;font-weight:normal;fill:#000" transform="rotate(-62 345 340)">Interface Adapter</text>
+<text x="910" y="335" text-anchor="middle" style="font-family:Arial;font-size:28px;font-weight:normal;fill:#000" transform="rotate(62 910 335)">Repositories</text>
+<text x="985" y="370" text-anchor="middle" style="font-family:Arial;font-size:28px;font-weight:normal;fill:#000" transform="rotate(62 985 370)">Data Sources</text>
+<text x="650" y="430" text-anchor="middle" style="font-family:Arial;font-size:30px;font-weight:bold;fill:#000">Gateway</text>
+<text x="650" y="465" text-anchor="middle" style="font-family:Arial;font-size:30px;font-weight:bold;fill:#000">Model</text>
+<text x="650" y="500" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">RouteTarget</text>
+<text x="650" y="521" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">ProxyRequest</text>
+<text x="650" y="542" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">TraceContext</text>
+<text x="650" y="563" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000">UpstreamResponse</text>
+<text x="650" y="625" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:normal;fill:#000;font-style:italic">Dependencies</text>
+<text x="650" y="647" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:normal;fill:#000;font-style:italic">go</text>
+<text x="650" y="669" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:normal;fill:#000;font-style:italic">Inwards</text>
+<rect x="0" y="205" width="145" height="90" rx="10" fill="#FFF7ED" stroke="#F59E0B" stroke-width="1.5"/>
+<text x="72" y="242" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000;font-style:italic">REST Client</text>
+<text x="72" y="266" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:normal;fill:#000;font-style:italic">public API</text>
+<line x1="145" y1="250" x2="300" y2="295" stroke="#111" stroke-width="1.2" marker-start="url(#arrowStart)" marker-end="url(#arrow)"/>
+<rect x="0" y="405" width="145" height="90" rx="10" fill="#FFF7ED" stroke="#F59E0B" stroke-width="1.5"/>
+<text x="72" y="442" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000;font-style:italic">Monitoring</text>
+<text x="72" y="466" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:normal;fill:#000;font-style:italic">metrics scrape</text>
+<line x1="145" y1="450" x2="300" y2="485" stroke="#111" stroke-width="1.2" marker-start="url(#arrowStart)" marker-end="url(#arrow)"/>
+<rect x="0" y="605" width="145" height="90" rx="10" fill="#FFF7ED" stroke="#F59E0B" stroke-width="1.5"/>
+<text x="72" y="642" text-anchor="middle" style="font-family:Arial;font-size:16px;font-weight:bold;fill:#000;font-style:italic">Ops Client</text>
+<text x="72" y="666" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:normal;fill:#000;font-style:italic">routes / health</text>
+<line x1="145" y1="650" x2="300" y2="485" stroke="#111" stroke-width="1.2" marker-start="url(#arrowStart)" marker-end="url(#arrow)"/>
+<rect x="300" y="224" width="190" height="72" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="395" y="252" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000">Gateway API</text>
+<text x="395" y="276" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">/v1/{service}/*</text>
+<line x1="490" y1="260" x2="555" y2="430" stroke="#6B8EC6" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="300" y="414" width="190" height="72" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="395" y="442" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000">Diagnostics API</text>
+<text x="395" y="466" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">/health /routes /metrics</text>
+<line x1="490" y1="450" x2="555" y2="505" stroke="#6B8EC6" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="255" y1="450" x2="340" y2="450" stroke="#6B8EC6" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="930" y1="450" x2="845" y2="450" stroke="#6B8EC6" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="1010" y1="450" x2="945" y2="450" stroke="#6B8EC6" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1095" y="229" width="170" height="62" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1180" y="265" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000">RouteRegistry</text>
+<line x1="910" y1="430" x2="1095" y2="260" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1095" y="419" width="170" height="62" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1180" y="455" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000">UpstreamHttpPort</text>
+<line x1="910" y1="430" x2="1095" y2="450" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1095" y="609" width="170" height="62" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1180" y="645" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000">MetricsPort</text>
+<line x1="910" y1="505" x2="1095" y2="640" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1320" y="195" width="185" height="80" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="1412" y="227" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000;font-style:italic">Settings Adapter</text>
+<text x="1412" y="251" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">*_SERVICE_URL</text>
+<line x1="1265" y1="260" x2="1320" y2="235" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="1505" y1="235" x2="1545" y2="235" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1320" y="390" width="185" height="80" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="1412" y="422" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000;font-style:italic">HTTP Proxy Adapter</text>
+<text x="1412" y="446" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">urllib / REST</text>
+<line x1="1265" y1="450" x2="1320" y2="430" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="1505" y1="430" x2="1545" y2="430" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1320" y="585" width="185" height="80" rx="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+<text x="1412" y="617" text-anchor="middle" style="font-family:Arial;font-size:15px;font-weight:bold;fill:#000;font-style:italic">Prometheus Adapter</text>
+<text x="1412" y="641" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">metrics</text>
+<line x1="1265" y1="640" x2="1320" y2="625" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="1505" y1="625" x2="1545" y2="625" stroke="#111" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="1545" y="195" width="125" height="80" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1607" y="227" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:bold;fill:#000">Configuration</text>
+<text x="1607" y="251" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">.env</text>
+<rect x="1545" y="390" width="125" height="80" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1607" y="422" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:bold;fill:#000">Services amont</text>
+<text x="1607" y="446" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">HTTP REST</text>
+<rect x="1545" y="585" width="125" height="80" rx="6" fill="#F8FAFC" stroke="#64748B" stroke-width="1.5"/>
+<text x="1607" y="617" text-anchor="middle" style="font-family:Arial;font-size:14px;font-weight:bold;fill:#000">Prometheus</text>
+<text x="1607" y="641" text-anchor="middle" style="font-family:Arial;font-size:13px;font-weight:normal;fill:#000">scrape</text>
+</svg>

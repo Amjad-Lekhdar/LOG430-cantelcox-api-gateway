@@ -1,62 +1,33 @@
-@startdot catalog-service-5-2
-digraph G {
-  graph [
-    label="Whitebox catalog-service - Architecture hexagonale",
-    labelloc=t,
-    fontsize=18,
-    fontname="Arial",
-    bgcolor="white",
-    rankdir=LR,
-    splines=ortho,
-    nodesep=0.55,
-    ranksep=0.75
-  ];
+@startuml catalog-service-5-2
+title catalog-service - Hexagonal Architecture cible
 
-  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11, color="#111827"];
-  edge [fontname="Arial", fontsize=10, color="#A80036", arrowsize=0.75];
-
-  Interface [label="Interface Layer", fillcolor="#FEF3C7"];
-  Business [label="Business Layer", fillcolor="#DBEAFE"];
-  Infra [label="Infrastructure Layer", fillcolor="#FECACA"];
-
-  Gateway [label="API Gateway\nREST client", fillcolor="#FFF7ED"];
-  OrderSvc [label="order-service\nREST client", fillcolor="#FFF7ED"];
-  CatalogApi [label="CatalogController\n/v1/catalog/*", fillcolor="#DBEAFE"];
-
-  UseCases [label="Application Services\nListOffers\nGetOffer\nCheckEligibility", fillcolor="#E0F2FE"];
-  Domain [
-    label="Business Model\n\nOffer\nPlan\nPrice\nEligibilityRule\nCatalogVersion\n\nDependencies go inwards",
-    shape=polygon,
-    sides=6,
-    style=filled,
-    fillcolor="#FEF3C7",
-    color="#B91C1C",
-    width=3.2,
-    height=2.2
-  ];
-  Ports [label="Ports\nOfferRepository\nCatalogCache\nAuditPort", fillcolor="#F8FAFC"];
-
-  Repo [label="OfferRepository Adapter\nSQL", fillcolor="#DBEAFE"];
-  Cache [label="Cache Adapter\nRedis/local cache", fillcolor="#DBEAFE"];
-  Audit [label="AuditClient\nHTTP REST", fillcolor="#DBEAFE"];
-
-  Db [label="Catalog DB", shape=cylinder, fillcolor="#E0F2FE"];
-  CacheStore [label="Cache", shape=cylinder, fillcolor="#E0F2FE"];
-  AuditSvc [label="audit-service", fillcolor="#F8FAFC"];
-
-  { rank=same; Interface; Business; Infra; }
-  Interface -> Business -> Infra [style=invis, weight=10];
-
-  Gateway -> CatalogApi [label="consulter offres"];
-  OrderSvc -> CatalogApi [label="verifier prix"];
-  CatalogApi -> UseCases;
-  UseCases -> Domain;
-  UseCases -> Ports;
-  Ports -> Repo [label="charge version"];
-  Ports -> Cache [label="offres actives"];
-  Ports -> Audit [label="trace verification"];
-  Repo -> Db;
-  Cache -> CacheStore;
-  Audit -> AuditSvc;
+left to right direction
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam linetype ortho
+skinparam rectangle {
+  RoundCorner 8
 }
-@enddot
+
+rectangle "Clients
+REST Client\nOrder Client\nAdmin Client" as Clients #FFF7ED
+rectangle "Interface Adapters
+CatalogController\nCatalogAdmin" as Controllers #DBEAFE
+hexagon "Business Model
+Offer\nPlan\nPrice\nEligibilityRule\nCatalogVersion
+
+Dependencies go inwards" as Domain #FFF2C6
+rectangle "Ports
+OfferRepository\nCatalogCache\nAuditPort" as Ports #F8FAFC
+rectangle "Infrastructure Adapters
+PostgreSQL Adapter\nCache Adapter\nAuditClient" as Adapters #DBEAFE
+rectangle "Data Sources / External Systems
+Catalog DB\nCache\naudit-service" as Targets #F8FAFC
+
+Clients --> Controllers
+Controllers --> Domain
+Domain --> Ports
+Ports --> Adapters
+Adapters --> Targets
+@enduml

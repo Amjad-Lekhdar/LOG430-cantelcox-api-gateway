@@ -1,31 +1,33 @@
 @startuml api-gateway-5-2
-title Whitebox API Gateway - Niveau 2
+title api-gateway - Hexagonal Architecture cible
 
-top to bottom direction
+left to right direction
 skinparam shadowing false
 skinparam backgroundColor #FFFFFF
 skinparam defaultFontName Arial
-skinparam packageStyle rectangle
 skinparam linetype ortho
 skinparam rectangle {
   RoundCorner 8
 }
 
-package "API Gateway" #DCFCE7 {
-  rectangle "Adapters d'entree\nFastAPI / HTTP" as In #BBF7D0
-  rectangle "Routage\nROUTE_TARGETS" as Routing #E0F2FE
-  rectangle "Proxy HTTP\npreserve methode, corps, query" as Proxy #E0F2FE
-  rectangle "Configuration\nSettings / .env" as Config #FEF3C7
-  rectangle "Gestion erreurs\n404 / 503 / 502" as Errors #FEE2E2
-  rectangle "Filtre headers\nhop-by-hop" as Headers #F1F5F9
-}
+rectangle "Clients
+REST Client\nMonitoring\nOps Client" as Clients #FFF7ED
+rectangle "Interface Adapters
+Gateway API\nDiagnostics API" as Controllers #DBEAFE
+hexagon "Gateway Model
+RouteTarget\nProxyRequest\nTraceContext\nUpstreamResponse
 
-In --> Routing : /v1/{service}
-Routing --> Config : lit URL amont
-Routing --> Proxy : cible service
-Proxy --> Headers : filtre requete/reponse
-Proxy --> Errors : indisponibilite
+Dependencies go inwards" as Domain #FFF2C6
+rectangle "Ports
+RouteRegistry\nUpstreamHttpPort\nMetricsPort" as Ports #F8FAFC
+rectangle "Infrastructure Adapters
+Settings Adapter\nHTTP Proxy Adapter\nPrometheus Adapter" as Adapters #DBEAFE
+rectangle "Data Sources / External Systems
+Configuration\nServices amont\nPrometheus" as Targets #F8FAFC
 
-rectangle "Services metier amont\nidentity, order, catalog, ..." as Upstream #E0F2FE
-Proxy --> Upstream : HTTP REST interne
+Clients --> Controllers
+Controllers --> Domain
+Domain --> Ports
+Ports --> Adapters
+Adapters --> Targets
 @enduml

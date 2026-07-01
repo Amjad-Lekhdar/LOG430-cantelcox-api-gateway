@@ -54,7 +54,23 @@ class IdentityAccount <<aggregate root>> {
 class MobileLine <<aggregate root>> {
   id : UUID
   msisdn : MSISDN
+  supi : SUPI
   activatedAt : DateTime
+}
+
+class SimProfile <<entity>> {
+  id : UUID
+  iccid : ICCID
+  supi : SUPI
+  dnn : String
+  slice : String
+}
+
+class NetworkSession <<entity>> {
+  id : UUID
+  pduSessionId : String
+  accessType : String
+  state : String
 }
 
 class Offer <<aggregate root>> {
@@ -88,6 +104,7 @@ class Order <<aggregate root>> {
   id : UUID
   customerId : UUID
   idempotencyKey : String
+  activationRequestId : UUID
   createdAt : DateTime
 }
 
@@ -147,6 +164,8 @@ Customer "1" --> "*" Order : passe
 Customer "1" --> "*" Invoice : recoit
 
 MobileLine "0..1" --> "1" Offer : souscrit
+MobileLine "1" *-- "0..1" SimProfile : provisionne
+MobileLine "1" --> "0..*" NetworkSession : observe via free5GC
 Offer "1" *-- "1" Plan : decrit
 Offer "1" *-- "1" Price : facture
 Offer "1" *-- "*" EligibilityRule : contraint

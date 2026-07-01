@@ -1,25 +1,30 @@
 # 11. Risques et dette technique
 
-## Risques actuels
+## 11.1 Risques actuels
 
-| Risque | Impact | Mitigation actuelle | Action recommandée |
-| --- | --- | --- | --- |
-| URLs amont incorrectes | Routes en `502` ou `503` | `/routes` expose la configuration active | Ajouter des tests de connectivité automatisés |
-| Services futurs non disponibles | Certaines routes restent inutilisables | Variables vides et réponse `503` | Créer les services et renseigner les URLs |
-| Pas de découverte de services | Configuration manuelle fragile | `.env` centralisé pour le gateway | Évaluer DNS interne, service registry ou convention Tailnet |
-| Métriques applicatives partielles | Diagnostic limité hors gateway | `/health`, Blackbox Exporter et `/metrics` gateway | Raccorder `/metrics` gateway dans Prometheus et ajouter `/metrics` par service |
-| Sécurité API incomplète | Accès potentiellement trop ouvert | CORS limité au développement local | Définir authentification, autorisation et rate limiting |
-| Proxy HTTP synchrone | Performance limitée sous forte charge | MVP simple | Évaluer `httpx` async et timeouts par service |
+| ID | Description | Probabilité | Impact | Mitigation |
+| --- | --- | --- | --- | --- |
+| R1 | URLs amont incorrectes | Moyenne | Élevé | `/routes` expose la configuration active; ajouter des tests de connectivité automatisés. |
+| R2 | Services futurs non disponibles | Élevée | Moyen | Variables vides et réponse `503`; créer les services et renseigner les URLs. |
+| R3 | Pas de découverte de services | Moyenne | Moyen | `.env` centralisé; évaluer DNS interne, service registry ou convention Tailnet. |
+| R4 | Métriques applicatives partielles | Moyenne | Moyen | `/health`, Blackbox Exporter et `/metrics` gateway; ajouter `/metrics` par service. |
+| R5 | Sécurité API incomplète | Moyenne | Élevé | Définir authentification, autorisation et rate limiting. |
+| R6 | Proxy HTTP synchrone | Faible | Moyen | Évaluer `httpx` async et timeouts par service. |
+| R7 | Indisponibilité ou mauvaise configuration free5GC | Moyenne | Élevé | Garder l'intégration derrière l'adapter d'activation; retourner une erreur métier explicite; ajouter un test de santé/provisioning côté service. |
+| R8 | Couplage involontaire aux fonctions réseau 5G | Faible | Moyen | Ne pas exposer AMF/SMF/UDM/UDR/UPF au gateway ni à `order-service`; maintenir un port `Free5gcPort` dans `line-service`. |
 
-## Dette technique
+## 11.2 Dette technique connue
 
-- Les ADR 0001 à 0005 sont encore peu documentés.
-- Les routes clients, facturation et audit sont prêtes mais leurs services ne sont pas encore branchés.
-- Les tests automatisés du gateway ne sont pas présents dans ce dépôt.
+- Les ADR doivent rester synchronisées avec l'état réel des services pendant la fin de phase.
+- Les routes clients, facturation et audit sont prêtes et configurables; les preuves de démonstration doivent rester à jour.
+- Les tests automatisés du gateway existent, mais les tests d'intégration inter-services restent à compléter.
+- Les métriques applicatives Prometheus sont exposées par le gateway; les autres services doivent encore être raccordés progressivement.
+- Le scénario free5GC doit être complété par des preuves de configuration et de test côté `line-service`.
 
-## Points à clarifier
+## 11.3 Points à clarifier
 
+- Adresse Tailnet définitive du coeur free5GC.
+- Convention de configuration de l'adapter free5GC (`SUPI`, DNN, slice, credentials éventuels).
 - Noms définitifs des services amont pour clients, facturation et audit.
-- Ports et adresses Tailnet de ces services.
 - Politique d'authentification au niveau gateway.
 - Format cible des logs et corrélation des requêtes entre services.

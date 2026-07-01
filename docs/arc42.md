@@ -43,8 +43,10 @@ Fonctionnalités principales:
 
 - Exposer un endpoint de santé `GET /health`.
 - Exposer la table de routage effective avec `GET /routes`.
+- Exposer des métriques Prometheus avec `GET /metrics`.
 - Router les appels `/v1/users/*` et `/v1/auth/*` vers `identity-service`.
 - Router les appels `/v1/orders/*` vers `order-service`.
+- Router les appels `/v1/lines/*` vers `line-service`.
 - Router les appels `/v1/catalog/*` vers `catalog-service`.
 - Préparer les routes `/v1/customers/*`, `/v1/billing/*` et `/v1/audit/*` vers des services dédiés configurables.
 - Retourner une erreur explicite lorsqu'un service amont n'est pas configuré ou indisponible.
@@ -60,7 +62,8 @@ Les objectifs suivants sont dérivés de la section 3 du cahier de charge, qui f
 | 3 | Disponibilité | 95 % en phase microservices; cible 99 % en architecture event-driven | Le gateway doit retourner des erreurs explicites (`502`, `503`) et permettre de détecter rapidement les services indisponibles. |
 | 4 | Observabilité | Logs structurés et métriques dès la phase 1; traces distribuées à partir de la phase 2 | Le gateway expose `/health`, `/routes` et `/metrics`; les logs JSON incluent un `trace_id` propagé vers les services amont. |
 | 5 | Conformité et auditabilité | Idempotence des commandes et activations, écritures de facturation fiables, journaux append-only, traçabilité CRTC/Loi 25 | Le gateway doit pouvoir transmettre les informations nécessaires aux services métier et rester compatible avec les futures politiques d'audit, d'authentification et d'autorisation. |
-| 6 | Sécurité opérationnelle | Contrôles anti-fraude attendus pour SIM swap, usage anormal et fraude roaming | Le gateway sert de point d'entrée unique et devra supporter les contrôles d'accès communs, même si la logique anti-fraude détaillée appartient aux services métier. |
+| 6 | Intégration réseau 5G | Activation démontrable avec free5GC en laboratoire | Le gateway reste hors des détails AMF/SMF/UDM/UDR/UPF; l'intégration free5GC est portée par l'adapter d'activation de `line-service`. |
+| 7 | Sécurité opérationnelle | Contrôles anti-fraude attendus pour SIM swap, usage anormal et fraude roaming | Le gateway sert de point d'entrée unique et devra supporter les contrôles d'accès communs, même si la logique anti-fraude détaillée appartient aux services métier. |
 
 ## 1.3 Parties prenantes
 
@@ -69,6 +72,7 @@ Les objectifs suivants sont dérivés de la section 3 du cahier de charge, qui f
 | Utilisateur final | Utilisateurs du frontend Expo | Accéder aux fonctionnalités CanTelcoX via une API stable. |
 | Équipe backend | Développeurs CanTelcoX | Déployer et faire évoluer les services indépendamment. |
 | Équipe exploitation | Ops / laboratoire | Observer l'état des services et diagnostiquer les erreurs de routage. |
+| Équipe réseau 5G | Responsables free5GC / UERANSIM | Raccorder le provisioning de ligne au coeur 5G sans exposer les fonctions réseau au client public. |
 | Évaluateurs | Enseignants LOG430 | Vérifier les choix d'architecture et leur justification documentaire. |
 
 # 2. Contraintes d'architecture
@@ -87,6 +91,7 @@ Les objectifs suivants sont dérivés de la section 3 du cahier de charge, qui f
 - Le frontend est une application Expo développée en TypeScript.
 - Le frontend doit consommer l'API via le gateway comme point d'entrée unique, sans appeler directement les services internes.
 - Le gateway doit autoriser les origines de développement nécessaires au frontend local grâce à sa configuration CORS.
+- Le coeur free5GC est joint comme système technique de laboratoire; il n'est pas exposé comme route publique du gateway.
 
 ## 2.2 Contraintes organisationnelles
 
@@ -127,6 +132,7 @@ La justification complète de ce choix est documentée dans [ADR 0006](adr/0006-
 | `customers-service` | `100.99.167.126:8050` |
 | `billing-service` | `100.114.185.38:8060` |
 | `audit-service` | `100.94.161.70:8070` |
+| free5GC core | Adresse Tailnet/LXC à renseigner |
 | `observability` | `100.87.177.66` |
 
 Le gateway doit pouvoir joindre les machines Tailnet depuis son environnement d'exécution.
@@ -145,10 +151,13 @@ Le découpage tient compte des capacités typiques d'un BSS moderne: gestion cli
 | Clients externes | in | HTTP / JSON | Consommateurs API potentiels. |
 | `identity-service` | out | HTTP / JSON | Gestion des utilisateurs et de l'authentification. |
 | `order-service` | out | HTTP / JSON | Gestion des commandes. |
+| `line-service` | out | HTTP / JSON | Gestion des lignes, SIM/SUPI, activations et état réseau. |
 | `catalog-service` | out | HTTP / JSON | Gestion du catalogue. |
 | `customers-service` | out | HTTP / JSON | Domaine clients prévu, URL à configurer. |
 | `billing-service` | out | HTTP / JSON | Domaine facturation prévu, URL à configurer. |
 | `audit-service` | out | HTTP / JSON | Domaine audit prévu, URL à configurer. |
+| free5GC core | out | API / configuration réseau 5G | Coeur 5G de laboratoire consommé par l'adapter d'activation de `line-service`. |
+| UERANSIM gNB/UE | out | Simulation 5G | Accès radio et terminal simulés pour valider l'attachement réseau. |
 | Observability | in | Prometheus / Grafana / Blackbox Exporter | Supervision des endpoints de santé. |
 
 ## 3.2 Contexte technique
@@ -162,6 +171,7 @@ Les contrats REST internes peuvent s'inspirer des TM Forum Open APIs, notamment 
 | --- | --- |
 | `IDENTITY_SERVICE_URL` | Cible des routes `/v1/users/*` et `/v1/auth/*` |
 | `ORDER_SERVICE_URL` | Cible des routes `/v1/orders/*` |
+| `LINE_SERVICE_URL` | Cible des routes `/v1/lines/*` |
 | `CATALOG_SERVICE_URL` | Cible des routes `/v1/catalog/*` |
 | `CUSTOMERS_SERVICE_URL` | Cible des routes `/v1/customers/*` |
 | `BILLING_SERVICE_URL` | Cible des routes `/v1/billing/*` |
@@ -171,6 +181,7 @@ Les contrats REST internes peuvent s'inspirer des TM Forum Open APIs, notamment 
 
 Le gateway est responsable du routage et des erreurs de disponibilité amont.
 Il n'est pas responsable de la persistance métier, de l'authentification interne détaillée ni des règles métier des services routés.
+Il ne pilote pas directement free5GC: le coeur 5G reste derrière l'adapter d'activation de `line-service`.
 
 # 4. Stratégie de solution
 
@@ -179,12 +190,14 @@ Il n'est pas responsable de la persistance métier, de l'authentification intern
 | Style architectural | API Gateway devant des microservices par domaine. |
 | Stack technologique | Expo, TypeScript, Python, FastAPI, PostgreSQL, Docker Compose, variables d'environnement. |
 | Réseau interne | Tailscale/Tailnet pour relier le gateway, les VM/LXC applicatives et l'environnement d'observabilité. |
-| Qualité atteinte par | Configuration explicite, endpoints `/health`, erreurs `502`/`503`, table `/routes`. |
+| Qualité atteinte par | Configuration explicite, endpoints `/health`, `/routes`, `/metrics`, erreurs `502`/`503`. |
+| Intégration 5G | Encapsuler free5GC derrière un adapter d'activation plutôt que l'exposer au gateway public. |
 | Approche d'organisation | Documentation arc42, décisions ADR, services déployables indépendamment. |
 
 Le gateway utilise une table de routage en mémoire qui associe un segment de route `/v1/{service}` à une URL de service amont.
 Les services déjà disponibles sont renseignés dans `.env`.
 Les services non encore créés disposent de variables dédiées laissées vides; le gateway retourne alors une réponse `503` claire lorsque la route est appelée.
+Le coeur free5GC est traité comme système technique voisin: `line-service` l'appelle pour provisionner la ligne, tandis que `order-service` se limite à créer la commande et demander l'activation.
 
 Avantages:
 
@@ -217,6 +230,10 @@ CanTelcoX API Gateway
   +--> customers-service    (à configurer)
   +--> billing-service      (à configurer)
   +--> audit-service        (à configurer)
+
+order-service
+  |
+  +--> free5GC core          (provisioning réseau 5G)
 ```
 
 | Bloc | Responsabilité | Interface principale |
@@ -224,10 +241,14 @@ CanTelcoX API Gateway
 | CanTelcoX API Gateway | Point d'entrée HTTP, routage et erreurs de disponibilité amont | HTTP REST public |
 | `identity-service` | Utilisateurs et authentification | HTTP REST, port `8020` |
 | `order-service` | Commandes | HTTP REST, port `8030` |
+| `line-service` | Lignes mobiles, SIM/SUPI et activations | HTTP REST, port `8080` |
 | `catalog-service` | Catalogue | HTTP REST, port `8040` |
 | `customers-service` | Clients | HTTP REST, à configurer |
 | `billing-service` | Facturation | HTTP REST, à configurer |
 | `audit-service` | Audit | HTTP REST, à configurer |
+| free5GC core | Provisionnement réseau 5G, attachement UE/gNB simulé et état des sessions | Adapter d'activation interne à `line-service` |
+
+Le modèle de domaine associe `MobileLine` à `SimProfile` et `NetworkSession` dans `line-service` pour représenter le provisionnement SIM/SUPI et l'état réseau observé via free5GC.
 
 ## 5.2 Niveau 2 - Whitebox de l'API Gateway
 
@@ -265,7 +286,7 @@ Cette section correspond à la vue processus de Kruchten 4+1.
 ![Scénario E2E CanTelcoX](diagrams/plantuml/runtime-e2e-6-1.svg)
 
 Le parcours nominal couvre l'inscription, la validation MFA, la consultation du catalogue, la création de commande avec `Idempotency-Key`, la déclaration facturable et la consultation d'usage.
-Le gateway relaie les appels; les règles métier restent dans les services amont.
+Le gateway relaie les appels; les règles métier restent dans les services amont. L'activation réseau free5GC est déclenchée par `line-service` après une demande de `order-service`.
 
 ## 6.1a Scénario: vérification de santé
 
@@ -289,6 +310,24 @@ API Gateway -> Client: même statut et contenu applicatif
 ```
 
 Le gateway conserve la méthode HTTP, le chemin, les paramètres de requête et le corps lorsque présent.
+
+## 6.2a Scénario: activation avec free5GC
+
+```text
+Client -> API Gateway: POST /v1/orders avec Idempotency-Key
+API Gateway -> order-service: POST /v1/orders avec Idempotency-Key
+order-service -> catalog-service: vérifier offre et prix
+order-service -> billing-service: déclarer commande facturable
+order-service -> line-service: demander activation de ligne
+line-service -> free5GC core: provisionner SUPI/SIM, DNN et slice
+free5GC core -> line-service: activation acceptée ou erreur réseau
+line-service -> audit-service: tracer activation
+line-service -> order-service: ligne active ou erreur normalisée
+order-service -> API Gateway: 201 commande confirmée ou erreur normalisée
+API Gateway -> Client: même statut et contenu applicatif
+```
+
+Le gateway ne connaît pas les détails AMF/SMF/UDM/UDR/UPF. L'intégration free5GC est encapsulée par le port d'activation de `line-service`.
 
 ## 6.3 Scénario: service prévu mais URL absente
 
@@ -330,6 +369,10 @@ Machine hôte / laboratoire
         +--> identity-service
         +--> order-service
         +--> catalog-service
+        +--> customers-service
+        +--> billing-service
+        +--> audit-service
+        +--> free5GC core
         +--> observability
 ```
 
@@ -338,7 +381,11 @@ Machine hôte / laboratoire
 | API Gateway | Docker Compose avec `network_mode: host` | 1 | Point d'entrée HTTP local/laboratoire |
 | `identity-service` | VM/LXC Tailnet | 1 | Utilisateurs et authentification |
 | `order-service` | VM/LXC Tailnet | 1 | Commandes |
-| `catalog-service` | VM/LXC Tailnet | 1 | Catalogue |
+| `catalog-service` | VM/LXC Tailnet | 1..4 | Catalogue, service pilote pour load balancing |
+| `customers-service` | VM/LXC Tailnet | 1 | Clients |
+| `billing-service` | VM/LXC Tailnet | 1 | Facturation |
+| `audit-service` | VM/LXC Tailnet | 1 | Audit append-only |
+| free5GC core | VM/LXC Tailnet ou hôte laboratoire | 1 | Coeur réseau 5G et fonctions AMF/SMF/UDM/UDR/NRF/UPF |
 | Observability | VM/LXC ou hôte dédié | 1 | Prometheus, Grafana, Blackbox Exporter |
 
 ## 7.2 Mapping blocs vers noeuds
@@ -352,6 +399,7 @@ Machine hôte / laboratoire
 | `customers-service` | `http://100.99.167.126:8050` |
 | `billing-service` | `http://100.114.185.38:8060` |
 | `audit-service` | `http://100.94.161.70:8070` |
+| free5GC core | Adresse Tailnet/LXC à renseigner côté adapter d'activation |
 
 ## 7.3 Load balancing
 
@@ -380,25 +428,48 @@ La pile cible contient:
 Le modèle initial utilise Blackbox Exporter pour sonder les endpoints `/health` des services.
 Le gateway expose des métriques applicatives Prometheus sur `/metrics`. Les autres services peuvent être ajoutés progressivement selon le même patron.
 
+Commandes utiles:
+
+```bash
+sudo docker compose up --build
+curl -i http://127.0.0.1:8000/health
+curl -i http://127.0.0.1:8000/routes
+curl -i http://127.0.0.1:8000/metrics
+```
+
 # 8. Concepts transversaux
 
 Cette section correspond à la vue développement de Kruchten 4+1.
 
-## 8.1 Modèle de domaine
+## 8.1 Configuration
 
-Le gateway ne détient pas les agrégats métier.
-Il transporte les requêtes vers les bounded contexts concernés: identité, commandes, catalogue, clients, facturation et audit.
-Ces contextes correspondent au découpage proposé pour CanTelcoX: Clients & Identité, Lignes & Services, Commandes & Activations, Catalogue & Offres, Usage/Rating/Facturation, Conformité & Audit (CanTelcoX_Dossier_Domaine.pdf, p. 21).
+Les adresses des services amont sont configurées par variables d'environnement.
+Le fichier `.env` sert de configuration locale/laboratoire et est chargé par Docker Compose.
 
-## 8.2 Sécurité
+Variables principales:
 
-Le gateway configure CORS pour des origines locales utilisées en développement.
-Les mécanismes avancés comme l'authentification centralisée, la validation des jetons, le rate limiting et les politiques de sécurité d'API restent à préciser.
-Les principes à prévoir pour la cible sont le zero trust entre services, la minimisation des données, le chiffrement au repos, le masquage des champs sensibles dans les logs, la rotation des clés, la traçabilité des consentements et un processus de notification d'incident (CanTelcoX_Dossier_Domaine.pdf, p. 22).
+- `IDENTITY_SERVICE_URL`
+- `ORDER_SERVICE_URL`
+- `CATALOG_SERVICE_URL`
+- `CUSTOMERS_SERVICE_URL`
+- `BILLING_SERVICE_URL`
+- `AUDIT_SERVICE_URL`
 
-Les opérations sensibles du domaine télécom, comme le SIM swap, le port-out, le changement de mot de passe ou le changement d'adresse, doivent être traitées comme des actions à risque. Le dossier de domaine recommande des facteurs non-SMS pour ces actions, des notifications hors-bande, des délais de validation et une traçabilité complète (CanTelcoX_Dossier_Domaine.pdf, p. 17-18).
+Les paramètres free5GC ne sont pas des variables du gateway public; ils appartiennent à `line-service`, qui implémente le port d'activation réseau.
 
-## 8.3 Gestion des erreurs
+## 8.2 Routage HTTP
+
+Le gateway route les requêtes en fonction du premier segment après `/v1`.
+Le chemin complet restant et les paramètres de requête sont conservés.
+Les appels vers free5GC ne passent pas par une route publique du gateway: ils sont déclenchés par `line-service` via un adapter de sortie.
+
+## 8.3 Gestion des headers
+
+Les headers hop-by-hop sont supprimés lors du proxying.
+Cela évite de propager des headers propres à une connexion HTTP intermédiaire, par exemple `connection`, `transfer-encoding` ou `host`.
+Le header `X-Trace-Id` est généré ou propagé pour relier les logs gateway et services.
+
+## 8.4 Gestion des erreurs
 
 | Cas | Réponse |
 | --- | --- |
@@ -407,33 +478,50 @@ Les opérations sensibles du domaine télécom, comme le SIM swap, le port-out, 
 | Service amont inaccessible | `502` |
 | Erreur HTTP retournée par le service amont | Statut et contenu de l'amont |
 
-## 8.4 Journalisation et observabilité
+Les erreurs métier, dont les erreurs d'activation free5GC, doivent être normalisées par le service amont responsable, notamment `line-service` pour `/v1/lines/*`, avant d'être relayées.
 
-Le gateway expose `/health`.
-La supervision initiale repose sur des sondes HTTP via Blackbox Exporter.
-Les métriques applicatives détaillées restent à ajouter.
+## 8.5 Observabilité
 
-## 8.5 Internationalisation
+Le gateway expose `/health`, `/routes` et `/metrics`.
+La supervision initiale repose sur des sondes HTTP via Blackbox Exporter et des métriques Prometheus.
+Les métriques applicatives des autres services restent à instrumenter ou raccorder progressivement.
 
-Non applicable au gateway MVP: il transporte les réponses des services amont sans gérer de contenu localisé.
+## 8.6 Sécurité
 
-## 8.6 Persistance et migrations
+Le gateway configure CORS pour des origines locales utilisées en développement.
+Les mécanismes avancés comme l'authentification centralisée, la validation des jetons, le rate limiting et les politiques de sécurité d'API restent à préciser.
+
+Les opérations sensibles du domaine télécom, comme le SIM swap, le port-out, le changement de mot de passe ou le changement d'adresse, doivent être traitées comme des actions à risque. Le gateway reste compatible avec ces contrôles en préservant les headers applicatifs et en permettant la propagation de traces.
+
+## 8.7 Idempotence, exactly-once et audit
+
+Le gateway préserve les headers applicatifs et peut transporter `Idempotency-Key`.
+La déduplication effective doit être implémentée côté `order-service` pour les commandes, côté `line-service` pour les activations et côté `billing-service` pour les écritures de facturation.
+Les opérations sensibles doivent être journalisées par `audit-service` dans un registre append-only.
+
+## 8.8 Intégration free5GC
+
+free5GC est traité comme système technique externe au BSS.
+`line-service` expose un port d'activation qui masque les détails réseau 5G: provisionnement SIM/SUPI, DNN, slice et vérification d'état.
+Cette séparation évite de coupler le gateway et les contrats REST publics aux composants AMF, SMF, UDM, UDR, NRF ou UPF.
+
+## 8.9 Persistance et migrations
 
 Non applicable au gateway MVP: il ne possède pas de base de données.
-La persistance appartient aux services métier.
+La persistance appartient aux services métier, idéalement avec une base PostgreSQL ou un schéma isolé par service.
 
-## 8.7 Build, déploiement, CI/CD
+## 8.10 Build, déploiement, CI/CD
 
 Le build est défini par le `Dockerfile`.
 Le lancement local/laboratoire est défini par `docker-compose.yml`.
 Les URLs amont sont chargées depuis `.env`.
 
-## 8.8 Tests
+## 8.11 Tests
 
-Le dépôt contient un script de connectivité `scripts/check_gateway_connectivity.py` référencé par le README.
-Les tests automatisés du gateway restent à compléter.
+Le dépôt contient des tests automatisés du gateway dans `tests/test_gateway.py`.
+Ils couvrent notamment `/health`, `/routes`, les routes inconnues, les services connus non configurés, les erreurs amont et le proxy vers un service mock.
 
-## 8.9 Conventions de code et structure des dépôts
+## 8.12 Conventions de code et structure des dépôts
 
 | Élément | Convention actuelle |
 | --- | --- |
@@ -448,12 +536,13 @@ Chaque ADR vit dans son propre fichier sous `docs/adr/NNNN-titre.md`.
 
 | # | Titre | Statut | Date |
 | --- | --- | --- | --- |
-| [0001](adr/0001-architecture-microservices.md) | Architecture microservices | Proposed | À compléter |
-| [0002](adr/0002-api-gateway.md) | API Gateway | Proposed | À compléter |
-| [0003](adr/0003-database-per-service.md) | Database per service | Proposed | À compléter |
-| [0004](adr/0004-idempotence-audit-billing.md) | Idempotence, audit et billing | Proposed | À compléter |
-| [0005](adr/0005-observability-lxc.md) | Environnement observabilité dédié | Accepted | À compléter |
+| [0001](adr/0001-architecture-microservices.md) | Architecture microservices alignée sur les bounded contexts | Accepted | 2026-06-23 |
+| [0002](adr/0002-api-gateway.md) | API Gateway comme point d'entrée HTTP unique | Accepted | 2026-06-23 |
+| [0003](adr/0003-database-per-service.md) | Persistance database-per-service | Accepted | 2026-06-23 |
+| [0004](adr/0004-idempotence-audit-billing.md) | Idempotence, facturation exactly-once et audit append-only | Accepted | 2026-06-23 |
+| [0005](adr/0005-observability-lxc.md) | Environnement observabilité dédié | Accepted | 2026-06-08 |
 | [0006](adr/0006-utilisation-tailscale.md) | Utilisation de Tailscale pour le réseau privé | Accepted | 2026-06-08 |
+| [0007](adr/0007-choix-frontend.md) | Choix du frontend Expo React Native Web | Accepted | 2026-06-28 |
 
 Statuts possibles: Proposed, Accepted, Deprecated, Superseded by NNNN.
 
@@ -488,6 +577,8 @@ Qualité
 | Q3 | Disponibilité | Client API | `order-service` est inaccessible | Retourner `502` avec la cible amont | Timeout maximal 15 s |
 | Q4 | Observabilité | Opérateur | Appel `GET /health` | Retourner `200` si l'application est active | Endpoint utilisable par Blackbox Exporter |
 | Q5 | Diagnostic | Opérateur | Appel `GET /routes` | Lister les URLs chargées au démarrage | Table lisible en JSON |
+| Q6 | Intégration free5GC | Abonné / agent | Activation d'une ligne après commande | `line-service` provisionne SUPI/SIM/DNN/slice via l'adapter free5GC | Ligne active ou erreur réseau explicite |
+| Q7 | Traçabilité | Exploitation | Erreur amont ou activation sensible | Propager `X-Trace-Id` et journaliser le résultat | Logs corrélables gateway/service |
 
 # 11. Risques et dette technique
 
@@ -501,18 +592,23 @@ Qualité
 | R4 | Métriques applicatives partielles | Moyenne | Moyen | `/health`, Blackbox Exporter et `/metrics` gateway; ajouter `/metrics` par service. |
 | R5 | Sécurité API incomplète | Moyenne | Élevé | Définir authentification, autorisation et rate limiting. |
 | R6 | Proxy HTTP synchrone | Faible | Moyen | Évaluer `httpx` async et timeouts par service. |
+| R7 | Indisponibilité ou mauvaise configuration free5GC | Moyenne | Élevé | Garder l'intégration derrière l'adapter d'activation; retourner une erreur métier explicite; ajouter un test de santé/provisioning côté service. |
+| R8 | Couplage involontaire aux fonctions réseau 5G | Faible | Moyen | Ne pas exposer AMF/SMF/UDM/UDR/UPF au gateway ni à `order-service`; maintenir un port `Free5gcPort` dans `line-service`. |
 
 ## 11.2 Dette technique connue
 
-- Les ADR 0001 à 0005 sont encore peu documentés.
-- Les routes clients, facturation et audit sont prêtes mais leurs services ne sont pas encore branchés.
-- Les tests automatisés du gateway ne sont pas présents dans ce dépôt.
+- Les ADR doivent rester synchronisées avec l'état réel des services pendant la fin de phase.
+- Les routes clients, facturation et audit sont prêtes et configurables; les preuves de démonstration doivent rester à jour.
+- Les tests automatisés du gateway existent, mais les tests d'intégration inter-services restent à compléter.
 - Les métriques applicatives Prometheus sont exposées par le gateway; les autres services doivent encore être raccordés progressivement.
+- Le scénario free5GC doit être complété par des preuves de configuration et de test côté `line-service`.
 
 ## 11.3 Points à clarifier
 
 - Noms définitifs des services amont pour clients, facturation et audit.
 - Ports et adresses Tailnet de ces services.
+- Adresse Tailnet définitive du coeur free5GC.
+- Convention de configuration de l'adapter free5GC (`SUPI`, DNN, slice, credentials éventuels).
 - Politique d'authentification au niveau gateway.
 - Format cible des logs et corrélation des requêtes entre services.
 
@@ -526,10 +622,17 @@ Qualité
 | BSS | Business Support System, domaine télécom couvrant notamment catalogue, clients, facturation et audit. |
 | Blackbox Exporter | Composant Prometheus qui sonde des endpoints externes, par exemple `/health`. |
 | Bounded context | Frontière logique d'un sous-domaine métier. |
+| DNN | Data Network Name, nom de réseau de données utilisé dans une session 5G. |
 | FastAPI | Framework Python utilisé pour exposer l'API HTTP du gateway. |
+| free5GC | Coeur réseau 5G open source utilisé en laboratoire pour valider le provisioning et l'attachement réseau. |
+| Idempotency-Key | Clé applicative permettant de rejouer une opération sans produire de doublon métier. |
 | LXC | Technologie de conteneurisation système utilisée comme option d'hébergement laboratoire. |
 | Microservice | Service autonome responsable d'un domaine fonctionnel précis. |
+| MSISDN | Numéro d'appel mobile associé à une ligne. |
+| Port | Interface applicative qui décrit un besoin d'entrée ou de sortie sans imposer une technologie. |
+| SUPI | Identifiant permanent d'abonné 5G provisionné dans le coeur réseau. |
 | Tailnet | Réseau privé Tailscale reliant les VM/LXC du laboratoire. |
+| UERANSIM | Simulateur gNB/UE utilisé pour tester l'accès radio 5G avec free5GC. |
 | URL amont | URL du service cible vers lequel le gateway proxifie une requête. |
 | VM | Machine virtuelle utilisée pour héberger certains services. |
 

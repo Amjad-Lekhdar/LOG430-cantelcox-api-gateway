@@ -43,7 +43,11 @@ digraph G {
     fillcolor="#E0F2FE"
   ];
   Orders [
-    label="order-service\nCommandes, activations",
+    label="order-service\nCommandes, orchestration",
+    fillcolor="#E0F2FE"
+  ];
+  Lines [
+    label="line-service\nLignes, SIM/SUPI, activation",
     fillcolor="#E0F2FE"
   ];
   Customers [
@@ -58,14 +62,20 @@ digraph G {
     label="audit-service\nAudit append-only",
     fillcolor="#E0F2FE"
   ];
+  Free5GC [
+    label="free5GC core\nAMF/SMF/UDM/UDR/NRF/UPF",
+    fillcolor="#FED7AA"
+  ];
 
-  { rank=same; Customers; Orders; Identity; }
-  { rank=same; Catalog; Audit; Billing; }
+  { rank=same; Customers; Orders; Lines; Identity; }
+  { rank=same; Catalog; Audit; Billing; Free5GC; }
 
   Customers -> Orders [style=invis, weight=10];
-  Orders -> Identity [style=invis, weight=10];
+  Orders -> Lines [style=invis, weight=10];
+  Lines -> Identity [style=invis, weight=10];
   Catalog -> Audit [style=invis, weight=10];
   Audit -> Billing [style=invis, weight=10];
+  Billing -> Free5GC [style=invis, weight=10];
   Customers -> Catalog [style=invis, weight=10];
   Orders -> Audit [style=invis, weight=10];
   Identity -> Billing [style=invis, weight=10];
@@ -102,6 +112,9 @@ digraph G {
   ];
   Orders -> Identity [xlabel="valider client"];
   Orders -> Billing [xlabel="commande facturable"];
+  Orders -> Lines [xlabel="demande activation"];
+  Lines -> Free5GC [xlabel="provisioning ligne / SIM"];
+  Lines -> Audit [xlabel="trace activation"];
   Identity -> Audit [xlabel="trace auth"];
   Billing -> Audit [xlabel="trace paiement"];
   Customers -> Audit [

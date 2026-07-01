@@ -9,6 +9,7 @@ Les services principalement à réaliser sont :
 - `audit-service`, port `8070`;
 - `customers-service`, port hôte `8050` redirigé vers le port conteneur `8000`;
 - `billing-service`, port `8060`.
+- `line-service`, port `8080`.
 
 Les services existants suivants doivent également être complétés :
 
@@ -33,6 +34,7 @@ Les routes doivent donc respecter la convention suivante :
 /v1/users/*      -> identity-service
 /v1/auth/*       -> identity-service
 /v1/customers/*  -> customers-service
+/v1/lines/*      -> line-service
 ```
 
 Le scénario d'inscription complet doit créer l'identité numérique, puis le profil client associé au moyen de `identityId`.
@@ -359,6 +361,13 @@ POST /v1/billing/payment-webhooks
 POST /v1/billing/cycles/{period}/close
 ```
 
+Il ne faut pas exposer `POST /v1/billing/invoices` pour créer une facture à
+l'unité. Le flux nominal est :
+
+1. enregistrer un usage facturable avec `POST /v1/billing/usage`;
+2. fermer le cycle avec `POST /v1/billing/cycles/{period}/close`;
+3. consulter les factures avec `GET /v1/billing/invoices`.
+
 ### 6.4 Consultation
 
 Les routes de lecture doivent vérifier que le client authentifié possède les comptes, lignes et factures demandés.
@@ -445,7 +454,7 @@ Endpoints attendus :
 POST /v1/orders
 GET  /v1/orders/{id}
 GET  /v1/orders
-POST /v1/orders/{id}/activate
+POST /v1/orders/{id}/activation-requests
 ```
 
 Pour créer une commande :
@@ -463,14 +472,121 @@ La portée d'une clé doit au minimum inclure :
 customerId + route + Idempotency-Key
 ```
 
-Pour l'activation :
+Pour demander une activation :
 
 - vérifier que la commande est admissible;
 - exiger une preuve MFA récente;
-- appeler un adaptateur HLR/HSS simulé;
-- rendre l'opération idempotente;
+- appeler `line-service` via HTTP REST, jamais free5GC directement;
+- transmettre `orderId`, `customerId`, `offerId`, `offerVersion`, `msisdn` si déjà attribué, et la preuve MFA ou son résultat;
+- rendre la demande d'activation idempotente;
 - contrôler explicitement les transitions de statut;
 - auditer le succès et l'échec.
+
+Ce que `order-service` ne doit plus faire :
+
+- posséder les tables `MobileLine`, `SimProfile` ou `NetworkSession`;
+- attribuer ou réserver directement un MSISDN;
+- stocker les secrets, paramètres ou credentials free5GC;
+- appeler AMF/SMF/UDM/UDR/UPF ou des scripts free5GC;
+- décider seul qu'une ligne est active sans confirmation de `line-service`;
+- mélanger l'état de commande (`PENDING`, `CONFIRMED`, `ACTIVATION_REQUESTED`) avec l'état réseau de la ligne.
+
+### 7.4 `line-service`
+
+Responsabilité :
+
+`line-service` est propriétaire du bounded context Lignes & Services. Il gère les lignes mobiles, MSISDN, profils SIM/SUPI, demandes d'activation, état réseau et intégration free5GC.
+
+Endpoints attendus :
+
+```http
+POST /v1/lines/activations
+GET  /v1/lines/{id}
+GET  /v1/lines/by-customer/{customerId}
+GET  /v1/lines/{id}/network-status
+PATCH /v1/lines/{id}/suspend
+PATCH /v1/lines/{id}/resume
+```
+
+Modèle minimal :
+
+```text
+MobileLine
+- id: UUID
+- customerId: UUID
+- orderId: UUID
+- msisdn: MSISDN, unique
+- status: PENDING_ACTIVATION | ACTIVE | SUSPENDED | FAILED | CLOSED
+- offerId: UUID
+- offerVersion: integer
+- activatedAt: datetime?
+
+SimProfile
+- id: UUID
+- lineId: UUID
+- iccid: string, unique
+- supi: string, unique
+- dnn: string
+- slice: string
+
+ActivationRequest
+- id: UUID
+- orderId: UUID
+- customerId: UUID
+- idempotencyKey: string
+- status: RECEIVED | PROVISIONING | ACTIVATED | FAILED
+- failureReason: string?
+- createdAt: datetime
+- completedAt: datetime?
+
+NetworkSession
+- id: UUID
+- lineId: UUID
+- pduSessionId: string?
+- accessType: string
+- state: REGISTERED | CONNECTED | DISCONNECTED | UNKNOWN
+- observedAt: datetime
+```
+
+Invariants :
+
+- Une ligne appartient à un seul `customerId`.
+- Un `MSISDN`, un `ICCID` et un `SUPI` sont uniques.
+- Une activation est idempotente par `customerId + orderId + Idempotency-Key`.
+- Une ligne ne peut passer à `ACTIVE` qu'après confirmation free5GC ou simulation explicitement documentée.
+- Un échec free5GC ne doit pas créer une ligne active.
+- Toute activation, suspension, reprise ou échec doit être auditée.
+
+Flux d'activation :
+
+1. recevoir `POST /v1/lines/activations` depuis `order-service` ou le gateway;
+2. exiger `Idempotency-Key`;
+3. vérifier la preuve MFA récente ou le résultat de validation fourni;
+4. créer ou retrouver `ActivationRequest` dans une transaction locale;
+5. réserver ou créer `MobileLine` et `SimProfile`;
+6. appeler l'adapter free5GC avec SUPI, DNN, slice et paramètres requis;
+7. marquer la ligne `ACTIVE` seulement après confirmation;
+8. auditer `LINE_ACTIVATED` ou `LINE_ACTIVATION_FAILED`;
+9. retourner l'état de ligne à `order-service`.
+
+Ports et adapters :
+
+- `LineRepository` vers PostgreSQL;
+- `Free5gcPort` vers l'adapter free5GC;
+- `AuditPort` vers `audit-service`;
+- `IdentityPort` ou validation JWT pour vérifier client/MFA;
+- adapter optionnel de portabilité MSISDN.
+
+Variables suggérées :
+
+```text
+LINE_SERVICE_URL=http://100.x.x.x:8080
+FREE5GC_API_URL=
+FREE5GC_NRF_URL=
+FREE5GC_DNN=
+FREE5GC_SLICE=
+FREE5GC_DEFAULT_PLMN=
+```
 
 ## 8. Sécurité
 
@@ -564,7 +680,7 @@ Le scénario à démontrer via le gateway est :
 4. consultation du catalogue;
 5. création d'une commande avec `Idempotency-Key`;
 6. rejeu identique sans nouvelle commande;
-7. activation de la ligne;
+7. demande d'activation à `line-service`;
 8. consultation de l'usage et de la facture;
 9. paiement idempotent;
 10. consultation de la trace d'audit.
@@ -601,6 +717,7 @@ CATALOG_SERVICE_URL=http://100.95.65.46:8040
 CUSTOMERS_SERVICE_URL=http://100.99.167.126:8050
 BILLING_SERVICE_URL=http://100.114.185.38:8060
 AUDIT_SERVICE_URL=http://100.94.161.70:8070
+LINE_SERVICE_URL=http://100.x.x.x:8080
 ```
 
 ## 12. Ordre de réalisation
@@ -609,14 +726,15 @@ AUDIT_SERVICE_URL=http://100.94.161.70:8070
 2. Créer un squelette commun pour les services.
 3. Implémenter `audit-service`.
 4. Implémenter `customers-service`.
-5. Implémenter la consultation d'usage et de factures.
-6. Ajouter le paiement et la clôture mensuelle.
-7. Compléter l'authentification et le MFA.
-8. Compléter le catalogue versionné.
-9. Compléter la commande idempotente et l'activation.
-10. Brancher tous les services au gateway.
-11. Ajouter les tests E2E.
-12. Ajouter les tests de charge et les preuves Grafana.
+5. Implémenter `line-service` avec activation idempotente et adapter free5GC.
+6. Implémenter la consultation d'usage et de factures.
+7. Ajouter le paiement et la clôture mensuelle.
+8. Compléter l'authentification et le MFA.
+9. Compléter le catalogue versionné.
+10. Compléter la commande idempotente dans `order-service`.
+11. Brancher tous les services au gateway.
+12. Ajouter les tests E2E.
+13. Ajouter les tests de charge et les preuves Grafana.
 
 ## 13. Définition de fini
 

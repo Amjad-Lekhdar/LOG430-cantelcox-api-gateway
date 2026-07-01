@@ -13,6 +13,7 @@ et la persistance PostgreSQL appartiennent aux services responsables.
 | --- | --- | --- | --- |
 | `identity-service` | `/v1/users/*`, `/v1/auth/*` | `100.83.57.43:8020` | Configuré |
 | `order-service` | `/v1/orders/*` | `100.108.225.1:8030` | Configuré |
+| `line-service` | `/v1/lines/*` | À renseigner, port cible `8080` | Prévu |
 | `catalog-service` | `/v1/catalog/*` | `100.95.65.46:8040` | Configuré |
 | `customers-service` | `/v1/customers/*` | `100.99.167.126:8050` | Configuré |
 | `billing-service` | `/v1/billing/*` | `100.114.185.38:8060` | Configuré |
@@ -120,10 +121,15 @@ Le gateway charge automatiquement le fichier `.env` :
 ```dotenv
 IDENTITY_SERVICE_URL=http://100.83.57.43:8020
 ORDER_SERVICE_URL=http://100.108.225.1:8030
+LINE_SERVICE_URL=http://100.x.x.x:8080
 CATALOG_SERVICE_URL=http://100.95.65.46:8040
 CUSTOMERS_SERVICE_URL=http://100.99.167.126:8050
 BILLING_SERVICE_URL=http://100.114.185.38:8060
 AUDIT_SERVICE_URL=http://100.94.161.70:8070
+REDIS_URL=redis://127.0.0.1:6379/0
+CACHE_ENABLED=true
+CACHE_TTL_SECONDS=60
+CACHE_SERVICES=catalog
 ```
 
 Après une modification de `.env`, redémarrer le gateway :
@@ -144,6 +150,7 @@ GET /openapi.json
 /v1/users/*      -> identity-service
 /v1/auth/*       -> identity-service
 /v1/orders/*     -> order-service
+/v1/lines/*      -> line-service
 /v1/catalog/*    -> catalog-service
 /v1/customers/*  -> customers-service
 /v1/billing/*    -> billing-service
@@ -152,6 +159,27 @@ GET /openapi.json
 
 Le gateway conserve la méthode HTTP, le chemin, le corps, les paramètres de
 requête et les headers applicatifs. Les headers HTTP hop-by-hop sont retirés.
+
+## Cache Redis
+
+Le gateway utilise Redis comme cache de lecture pour les réponses `GET` des
+services configurés dans `CACHE_SERVICES`. Par défaut, seul `catalog-service`
+est mis en cache, car le catalogue est lu souvent et change moins fréquemment
+que les données client, commande ou facturation.
+
+Fonctionnement:
+
+```text
+GET /v1/catalog/plans
+  -> clé Redis api-gateway:v1:catalog:GET:<url-amont-complete>
+  -> HIT: réponse renvoyée depuis Redis avec X-Cache: HIT
+  -> MISS: appel au service amont, stockage Redis avec TTL, X-Cache: MISS
+```
+
+Les requêtes avec un header `Authorization` contournent le cache
+(`X-Cache: BYPASS`) pour éviter de réutiliser une réponse potentiellement
+spécifique à un utilisateur. Si Redis est indisponible, le gateway journalise
+l'erreur et continue de proxifier vers le service amont.
 
 ## Voir les routes des services
 
@@ -170,6 +198,7 @@ depuis `.env`. Exemple :
   "/v1/users/*": "http://100.83.57.43:8020",
   "/v1/auth/*": "http://100.83.57.43:8020",
   "/v1/orders/*": "http://100.108.225.1:8030",
+  "/v1/lines/*": "http://100.x.x.x:8080",
   "/v1/catalog/*": "http://100.95.65.46:8040",
   "/v1/customers/*": "http://100.99.167.126:8050",
   "/v1/billing/*": "http://100.114.185.38:8060",
@@ -199,6 +228,7 @@ directement sur le Tailnet :
 ```text
 identity-service:  http://100.83.57.43:8020/docs
 order-service:     http://100.108.225.1:8030/docs
+line-service:      http://100.x.x.x:8080/docs
 catalog-service:   http://100.95.65.46:8040/docs
 customers-service: http://100.99.167.126:8050/docs
 billing-service:   http://100.114.185.38:8060/docs
@@ -213,9 +243,32 @@ curl -i http://127.0.0.1:8000/v1/users
 curl -i http://127.0.0.1:8000/v1/catalog/plans
 curl -i http://127.0.0.1:8000/v1/customers
 curl -i http://127.0.0.1:8000/v1/orders
+curl -i http://127.0.0.1:8000/v1/lines
 curl -i http://127.0.0.1:8000/v1/billing/invoices
 curl -i http://127.0.0.1:8000/v1/audit/events
 ```
+
+Flux minimal pour générer une facture via le gateway :
+
+```bash
+curl -i -X POST http://127.0.0.1:8000/v1/billing/usage \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalUsageId": "order-demo-2026-06",
+    "customerId": "00000000-0000-0000-0000-000000000001",
+    "lineId": "00000000-0000-0000-0000-000000000002",
+    "quantity": "1.0000",
+    "unit": "PLAN",
+    "recordedAt": "2026-06-27T12:00:00Z",
+    "ratedAmount": "39.99"
+  }'
+
+curl -i -X POST http://127.0.0.1:8000/v1/billing/cycles/2026-06/close
+curl -i "http://127.0.0.1:8000/v1/billing/invoices?customerId=00000000-0000-0000-0000-000000000001"
+```
+
+Il n'existe pas de `POST /v1/billing/invoices`. Une facture est créée par la
+fermeture du cycle après enregistrement d'un usage facturable.
 
 ## Vérification
 
@@ -256,6 +309,7 @@ Tester directement les services déployés :
 ```bash
 curl -i http://100.83.57.43:8020/health
 curl -i http://100.108.225.1:8030/health
+curl -i http://100.x.x.x:8080/health
 curl -i http://100.95.65.46:8040/health
 curl -i http://100.99.167.126:8050/health
 curl -i http://100.114.185.38:8060/health
@@ -286,10 +340,10 @@ pas sur le Tailnet.
 
 ## Services à compléter
 
-Les familles de routes `identity`, `orders`, `catalog`, `customers`,
+Les familles de routes `identity`, `orders`, `lines`, `catalog`, `customers`,
 `billing` et `audit` sont préparées côté gateway. Les compléments métier à
 finaliser restent dans les services responsables, notamment les scénarios MFA,
-le catalogue versionné, l'idempotence, l'activation et les flux d'audit ou de
+le catalogue versionné, l'idempotence, l'activation line-service/free5GC et les flux d'audit ou de
 facturation selon leur niveau d'implémentation.
 
 Chaque service métier possède sa propre base PostgreSQL et suit l'architecture
@@ -303,3 +357,4 @@ hexagonale décrite dans les directives d'implémentation.
 - [Runbook](docs/runbook.md)
 - [Backlog](docs/backlog.md)
 - [ADR Tailscale](docs/adr/0006-utilisation-tailscale.md)
+- [ADR Frontend](docs/adr/0007-choix-frontend.md)
