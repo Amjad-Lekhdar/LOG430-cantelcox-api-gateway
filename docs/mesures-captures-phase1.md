@@ -40,11 +40,11 @@ Prometheus: http://100.87.177.66:9090
 | C04 | §10.6 | Load balancing N=2 | HAProxy/Grafana/k6 montrant RPS, P95, erreurs | `docs/captures/k6-load-balancing/c04-lb-n2.png` | Intégré au gabarit |
 | C05 | §10.6 | Load balancing N=3 | HAProxy/Grafana/k6 montrant RPS, P95, erreurs | `docs/captures/k6-load-balancing/c05-lb-n3.png` | Intégré au gabarit |
 | C06 | §10.6 | Load balancing N=4 | HAProxy/Grafana/k6 montrant RPS, P95, erreurs | `docs/captures/k6-load-balancing/c06-lb-n4.png` | Intégré au gabarit |
-| C07 | §10.6 | Kill d'instance en charge | Courbe erreurs/disponibilité pendant arrêt d'une instance | `docs/captures/c07-lb-kill-instance.png` | À faire |
-| C08 | §10.7 | Cache OFF | k6 ou Grafana avec `CACHE_ENABLED=false` | `docs/captures/c08-cache-off.png` | À faire |
-| C09 | §10.7 | Cache ON | k6 ou Grafana avec `CACHE_ENABLED=true`, headers `X-Cache` visibles si possible | `docs/captures/c09-cache-on.png` | À faire |
-| C10 | §10.8 | Appel direct catalogue | k6 direct vers `catalog-service` | `docs/captures/c10-direct-catalog.png` | À faire |
-| C11 | §10.8 | Appel via gateway | k6 via `api-gateway` sur le même endpoint | `docs/captures/c11-gateway-catalog.png` | À faire |
+| C07 | §10.6 | Kill d'instance en charge | Courbe erreurs/disponibilité pendant arrêt d'une instance | `docs/captures/k6-kill-instance/c07-lb-kill-instance.png` | Intégré au gabarit |
+| C08 | §10.7 | Cache OFF | k6 ou Grafana avec `CACHE_ENABLED=false` | `docs/captures/cache-on-off/c08-cache-off.png` | Intégré au gabarit |
+| C09 | §10.7 | Cache ON | k6 ou Grafana avec `CACHE_ENABLED=true`, headers `X-Cache` visibles si possible | `docs/captures/cache-on-off/c09-cache-on.png` | Intégré au gabarit |
+| C10 | §10.8 | Appel direct catalogue | k6 direct vers `catalog-service` | `docs/captures/appel-direct/c10-direct-catalog.png` | Intégré au gabarit |
+| C11 | §10.8 | Appel via gateway | k6 via `api-gateway` sur le même endpoint | `docs/captures/appel-gateway/c11-gateway-catalog.png` | Intégré au gabarit |
 
 ## 3. Requêtes Prometheus utiles
 
@@ -111,8 +111,8 @@ GATEWAY_URL=http://127.0.0.1:8000 CATALOG_PATH=/v1/catalog/plans k6 run tests/lo
 
 | Trajet | URL | P95 | Erreurs | Traçabilité observée | Capture |
 | --- | --- | --- | --- | --- | --- |
-| Direct | `http://100.95.65.46:8040/plans` | À compléter | À compléter | Logs service amont | C10 |
-| Via gateway | `http://127.0.0.1:8000/v1/catalog/plans` | À compléter | À compléter | `/routes`, logs JSON gateway, `X-Trace-Id` | C11 |
+| Direct | `http://100.95.65.46:8040/v1/catalog/plans` | 27,08 ms | 0,00 % | Logs service amont | C10 |
+| Via gateway | `http://127.0.0.1:8000/v1/catalog/plans` | 47,32 ms | 0,00 % | `/routes`, logs JSON gateway, `X-Trace-Id` | C11 |
 
 ## 5. Load balancing N = 1..4
 
@@ -144,7 +144,7 @@ disponibles.
 | 2 | 19,51 req/s | 38,8 | 0,00 % | Non mesurée | `docs/captures/k6-load-balancing/c04-lb-n2.png` | 20 VUs, 1 min, 1190 requêtes |
 | 3 | 19,42 req/s | 74,84 | 0,00 % | Non mesurée | `docs/captures/k6-load-balancing/c05-lb-n3.png` | 20 VUs, 1 min, 1184 requêtes |
 | 4 | 19,53 req/s | 41,72 | 0,00 % | Non mesurée | `docs/captures/k6-load-balancing/c06-lb-n4.png` | 20 VUs, 1 min, 1189 requêtes |
-| Kill instance | À compléter | À compléter | À compléter | À compléter | C07 | Arrêter une instance pendant k6 |
+| Kill instance | 19,68 req/s | 31,26 | 0,00 % | Non mesurée | `docs/captures/k6-kill-instance/c07-lb-kill-instance.png` | 20 VUs, 3 min, 3561 requêtes; une instance arrêtée pendant la campagne |
 
 ## 6. Cache on/off
 
@@ -174,7 +174,7 @@ La première réponse devrait indiquer `X-Cache: MISS`, puis la suivante
 
 | Endpoint | P95 sans cache | P95 avec cache | Charge service/DB | Gain | Captures |
 | --- | --- | --- | --- | --- | --- |
-| `/v1/catalog/plans` | À compléter | À compléter | À compléter | À compléter | C08, C09 |
+| `/v1/catalog/plans` | 72,82 ms | 26,69 ms | Non mesurée | -63,3 % sur P95 | C08, C09 |
 
 ## 7. Notes de capture reçues
 
@@ -194,3 +194,8 @@ Coller ici les observations quand les captures seront reçues.
 | `docs/captures/k6-load-balancing/c04-lb-n2.png` | Résumé k6 load balancing N=2 | 20 VUs pendant 1 min; 1190 requêtes; 19,51 req/s; checks 100 %; erreurs HTTP 0,00 %; P90 31,15 ms; P95 38,8 ms; max 54,01 ms | §10.6 |
 | `docs/captures/k6-load-balancing/c05-lb-n3.png` | Résumé k6 load balancing N=3 | 20 VUs pendant 1 min; 1184 requêtes; 19,42 req/s; checks 100 %; erreurs HTTP 0,00 %; P90 43,38 ms; P95 74,84 ms; max 124,89 ms | §10.6 |
 | `docs/captures/k6-load-balancing/c06-lb-n4.png` | Résumé k6 load balancing N=4 | 20 VUs pendant 1 min; 1189 requêtes; 19,53 req/s; checks 100 %; erreurs HTTP 0,00 %; P90 31,97 ms; P95 41,72 ms; max 51,34 ms | §10.6 |
+| `docs/captures/k6-kill-instance/c07-lb-kill-instance.png` | Résumé k6 kill d'instance pendant charge | 20 VUs pendant 3 min; 3561 requêtes; 19,68 req/s; checks 100 %; erreurs HTTP 0,00 %; P90 19,8 ms; P95 31,26 ms; max 107,7 ms | §10.6 |
+| `docs/captures/cache-on-off/c08-cache-off.png` | Résumé k6 cache désactivé | `CACHE_ENABLED=false`; 20 VUs pendant 1 min; 1186 requêtes; 19,46 req/s; erreurs HTTP 0,00 %; P90 44,42 ms; P95 72,82 ms; max 87,01 ms | §10.7 |
+| `docs/captures/cache-on-off/c09-cache-on.png` | Résumé k6 cache activé | `CACHE_ENABLED=true`; 20 VUs pendant 1 min; 1200 requêtes; 19,80 req/s; erreurs HTTP 0,00 %; P90 14,04 ms; P95 26,69 ms; max 39,89 ms | §10.7 |
+| `docs/captures/appel-direct/c10-direct-catalog.png` | Résumé k6 appel direct catalogue | 20 VUs pendant 1 min; 1200 requêtes; 19,72 req/s; erreurs HTTP 0,00 %; P90 22,18 ms; P95 27,08 ms; max 56,31 ms | §10.8 |
+| `docs/captures/appel-gateway/c11-gateway-catalog.png` | Résumé k6 appel catalogue via gateway | 20 VUs pendant 1 min; 1186 requêtes; 19,47 req/s; erreurs HTTP 0,00 %; P90 39,36 ms; P95 47,32 ms; max 74,07 ms | §10.8 |

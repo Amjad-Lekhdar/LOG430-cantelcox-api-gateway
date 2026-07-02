@@ -58,7 +58,7 @@ Le mode réseau `host` permet au conteneur gateway d'utiliser la connectivité r
 | API Gateway | Conteneur Docker construit depuis ce dépôt |
 | `identity-service` | `http://100.83.57.43:8020` |
 | `order-service` | `http://100.108.225.1:8030` |
-| `line-service` | Adresse Tailnet/LXC à renseigner, port cible `8080` |
+| `line-service` | `http://100.86.218.1:8080` |
 | `catalog-service` | `http://100.95.65.46:8040` ou HAProxy `http://127.0.0.1:18040` |
 | `customers-service` | `http://100.99.167.126:8050` |
 | `billing-service` | `http://100.114.185.38:8060` |

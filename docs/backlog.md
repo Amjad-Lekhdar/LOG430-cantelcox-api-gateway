@@ -26,12 +26,12 @@ Derniere mise a jour: 23 juin 2026.
 | B-02 | Documentation Arc42 et 4+1 | P0 | En cours | Documentation finale coherente avec l'etat reel du systeme |
 | B-03 | Cas d'utilisation Must | P0 | Fait | 5 UC Must decrits et relies aux services |
 | B-04 | Tests automatises du gateway | P0 | Fait | Tests unitaires pour les routes critiques du gateway |
-| B-05 | Observabilite | P0 | En cours | Gateway instrumente; Prometheus/Grafana a raccorder et captures a produire |
-| B-06 | Docker Compose complet | P0 | En cours | Gateway, services, DB, observabilite et healthchecks lancables |
-| B-07 | Performance et charge | P1 | A faire | Mesures k6/JMeter/Artillery et comparaison des variantes |
+| B-05 | Observabilite | P0 | En cours | Gateway instrumente; Prometheus/Grafana raccordes pour la demo; preuves a garder synchronisees |
+| B-06 | Docker Compose complet | P0 | En cours | Gateway, Redis et load balancer lancables; services metier maintenus dans des depots separes |
+| B-07 | Performance et charge | P1 | En cours | Mesures k6 catalogue, cache, direct/gateway et load balancing integrees; saturation haute cadence a approfondir |
 | B-08 | Securite applicative | P1 | En cours | CORS, erreurs uniformes, auth/MFA documentee ou implementee |
 | B-09 | Runbook et guide de demo | P1 | En cours | Procedure de lancement, diagnostic et demonstration |
-| B-10 | Rapport final et preuves | P1 | A faire | Captures, tableaux de resultats, ecarts argumentes |
+| B-10 | Rapport final et preuves | P1 | En cours | Captures et tableaux principaux integres; PDF final et coherence finale a produire |
 
 ## Progres documentaire recent
 
@@ -157,7 +157,7 @@ Statut: En cours
 - [ ] Ajouter/mettre a jour les dashboards Grafana pour les metriques gateway.
 - [ ] Documenter Prometheus, Grafana et Blackbox Exporter cote observability.
 - [ ] Ajouter des captures Grafana au rapport final.
-- [ ] Montrer les endpoints `/health` de chaque service.changed
+- [ ] Montrer les endpoints `/health` de chaque service accessible depuis les depots separes.
 
 ### Criteres d'acceptation
 
@@ -171,7 +171,7 @@ Statut: En cours
 ### Etat actuel
 
 - Cote gateway: logs JSON, `X-Trace-Id`, `/metrics` et metriques Prometheus applicatives sont en place.
-- Cote observability: Prometheus/Grafana/Blackbox existent dans le depot dedie, mais il reste a raccorder le scrape `/metrics` du gateway, adapter les dashboards et produire les captures.
+- Cote observability: Prometheus/Grafana/Blackbox existent dans le depot dedie. Les captures principales sont integrees au rapport; il reste a garder les dashboards et les preuves synchronises avec l'environnement de demo.
 
 ## B-06 - Rendre Docker Compose plus complet
 
@@ -181,7 +181,7 @@ Statut: En cours
 ### Taches
 
 - [ ] Ajouter les healthchecks au gateway.
-- [ ] Ajouter les services disponibles au compose si leurs images/depots sont accessibles.
+- [ ] Documenter comment lancer ou joindre les services metier maintenus dans leurs depots GitHub separes.
 - [ ] Ajouter PostgreSQL pour les services persistants si applicable.
 - [ ] Ajouter Prometheus.
 - [ ] Ajouter Grafana.
@@ -198,19 +198,19 @@ Statut: En cours
 ## B-07 - Produire les tests de charge et comparatifs
 
 Priorite: P1  
-Statut: A faire
+Statut: En cours
 
 ### Taches
 
 - [x] Ajouter un script k6 initial pour le load balancing catalogue.
 - [x] Tester consultation catalogue a haute cadence via gateway + HAProxy pour N = 1.
-- [ ] Tester prise de commande.
-- [ ] Tester activation de ligne si le service existe.
-- [ ] Comparer appels directs vs via gateway.
-- [ ] Comparer cache off vs cache on.
-- [ ] Comparer N = 1, 2, 3, 4 instances sur `catalog-service` comme service pilote. N = 1 mesure: 19,85 req/s, P95 9,91 ms, 0 % erreurs.
-- [ ] Documenter un test de panne en charge sur une instance `catalog-service`.
-- [ ] Décrire le patron HAProxy réplicable aux autres services sans l'implémenter partout.
+- [ ] Tester prise de commande via le service du depot separe.
+- [ ] Tester activation de ligne via le service du depot separe.
+- [x] Comparer appels directs vs via gateway.
+- [x] Comparer cache off vs cache on.
+- [x] Comparer N = 1, 2, 3, 4 instances sur `catalog-service` comme service pilote.
+- [x] Documenter un test de panne en charge sur une instance `catalog-service`.
+- [x] Décrire le patron HAProxy réplicable aux autres services sans l'implémenter partout.
 
 ### Criteres d'acceptation
 
@@ -262,16 +262,16 @@ Statut: En cours
 ## B-10 - Preparrer le rapport final et les preuves
 
 Priorite: P1  
-Statut: A faire
+Statut: En cours
 
 ### Taches
 
 - [ ] Generer ou assembler le PDF final.
 - [ ] Ajouter captures Swagger.
-- [ ] Ajouter captures Grafana.
+- [x] Ajouter captures Grafana.
 - [ ] Ajouter captures de tests ou logs CI.
-- [ ] Ajouter resultats de charge.
-- [ ] Ajouter tableau direct vs gateway vs optimise.
+- [x] Ajouter resultats de charge.
+- [x] Ajouter tableau direct vs gateway vs optimise.
 - [ ] Ajouter tableau des exigences et statut: fait, partiel, non fait, justification.
 
 ### Criteres d'acceptation

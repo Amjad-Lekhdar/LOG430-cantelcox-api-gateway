@@ -116,6 +116,8 @@ def test_catalog_get_is_cached_after_first_upstream_call(
 ):
     gateway.ROUTE_TARGETS["catalog"] = "http://catalog.example.test"
     gateway.redis_client = FakeRedis()
+    gateway.settings.cache_enabled = True
+    gateway.settings.cache_services = "catalog"
     upstream_calls = []
 
     def mock_upstream(upstream_request, timeout):
@@ -140,6 +142,8 @@ def test_catalog_get_is_cached_after_first_upstream_call(
 def test_authenticated_get_bypasses_cache(monkeypatch, restore_route_targets, restore_cache):
     gateway.ROUTE_TARGETS["catalog"] = "http://catalog.example.test"
     gateway.redis_client = FakeRedis()
+    gateway.settings.cache_enabled = True
+    gateway.settings.cache_services = "catalog"
     upstream_calls = []
 
     def mock_upstream(upstream_request, timeout):

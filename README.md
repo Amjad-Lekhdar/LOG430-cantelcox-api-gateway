@@ -13,13 +13,29 @@ et la persistance PostgreSQL appartiennent aux services responsables.
 | --- | --- | --- | --- |
 | `identity-service` | `/v1/users/*`, `/v1/auth/*` | `100.83.57.43:8020` | Configuré |
 | `order-service` | `/v1/orders/*` | `100.108.225.1:8030` | Configuré |
-| `line-service` | `/v1/lines/*` | À renseigner, port cible `8080` | Prévu |
+| `line-service` | `/v1/lines/*` | `100.86.218.1:8080` | Configuré |
 | `catalog-service` | `/v1/catalog/*` | `100.95.65.46:8040` | Configuré |
 | `customers-service` | `/v1/customers/*` | `100.99.167.126:8050` | Configuré |
 | `billing-service` | `/v1/billing/*` | `100.114.185.38:8060` | Configuré |
 | `audit-service` | `/v1/audit/*` | `100.94.161.70:8070` | Configuré |
 
 L'environnement d'observabilité est accessible sur `100.87.177.66`.
+
+## Dépôts des services
+
+Les services métier sont maintenus dans des dépôts GitHub séparés. Ce dépôt
+contient le gateway, sa configuration de routage, les scripts de mesure et les
+preuves d'intégration.
+
+| Service | Dépôt |
+| --- | --- |
+| `identity-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-identity-service> |
+| `order-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-order-service> |
+| `catalog-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-catalog-service> |
+| `line-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-line-service> |
+| `customers-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-customers-service> |
+| `billing-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-billing-service> |
+| `audit-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-audit-service> |
 
 ## Prérequis
 
@@ -121,7 +137,7 @@ Le gateway charge automatiquement le fichier `.env` :
 ```dotenv
 IDENTITY_SERVICE_URL=http://100.83.57.43:8020
 ORDER_SERVICE_URL=http://100.108.225.1:8030
-LINE_SERVICE_URL=http://100.x.x.x:8080
+LINE_SERVICE_URL=http://100.86.218.1:8080
 CATALOG_SERVICE_URL=http://100.95.65.46:8040
 CUSTOMERS_SERVICE_URL=http://100.99.167.126:8050
 BILLING_SERVICE_URL=http://100.114.185.38:8060
@@ -198,7 +214,7 @@ depuis `.env`. Exemple :
   "/v1/users/*": "http://100.83.57.43:8020",
   "/v1/auth/*": "http://100.83.57.43:8020",
   "/v1/orders/*": "http://100.108.225.1:8030",
-  "/v1/lines/*": "http://100.x.x.x:8080",
+  "/v1/lines/*": "http://100.86.218.1:8080",
   "/v1/catalog/*": "http://100.95.65.46:8040",
   "/v1/customers/*": "http://100.99.167.126:8050",
   "/v1/billing/*": "http://100.114.185.38:8060",
@@ -228,7 +244,7 @@ directement sur le Tailnet :
 ```text
 identity-service:  http://100.83.57.43:8020/docs
 order-service:     http://100.108.225.1:8030/docs
-line-service:      http://100.x.x.x:8080/docs
+line-service:      http://100.86.218.1:8080/docs
 catalog-service:   http://100.95.65.46:8040/docs
 customers-service: http://100.99.167.126:8050/docs
 billing-service:   http://100.114.185.38:8060/docs
@@ -309,7 +325,7 @@ Tester directement les services déployés :
 ```bash
 curl -i http://100.83.57.43:8020/health
 curl -i http://100.108.225.1:8030/health
-curl -i http://100.x.x.x:8080/health
+curl -i http://100.86.218.1:8080/health
 curl -i http://100.95.65.46:8040/health
 curl -i http://100.99.167.126:8050/health
 curl -i http://100.114.185.38:8060/health

@@ -12,17 +12,31 @@ Le choix principal du projet est d'utiliser Tailscale/Tailnet pour joindre les s
 | --- | --- | --- |
 | `identity-service` | `100.83.57.43` | `8020` |
 | `order-service` | `100.108.225.1` | `8030` |
+| `line-service` | `100.86.218.1` | `8080` |
 | `catalog-service` | `100.95.65.46` | `8040` |
 | `customers-service` | `100.99.167.126` | `8050` |
 | `billing-service` | `100.114.185.38` | `8060` |
 | `audit-service` | `100.94.161.70` | `8070` |
 | `observability` | `100.87.177.66` | `3000`, `9090`, `9115` |
 
+## Dépôts GitHub des services
+
+| Service | Dépôt |
+| --- | --- |
+| `identity-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-identity-service> |
+| `order-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-order-service> |
+| `catalog-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-catalog-service> |
+| `line-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-line-service> |
+| `customers-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-customers-service> |
+| `billing-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-billing-service> |
+| `audit-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-audit-service> |
+
 Les variables du gateway doivent pointer vers les adresses Tailnet:
 
 ```bash
 IDENTITY_SERVICE_URL=http://100.83.57.43:8020
 ORDER_SERVICE_URL=http://100.108.225.1:8030
+LINE_SERVICE_URL=http://100.86.218.1:8080
 CATALOG_SERVICE_URL=http://100.95.65.46:8040
 CUSTOMERS_SERVICE_URL=http://100.99.167.126:8050
 BILLING_SERVICE_URL=http://100.114.185.38:8060

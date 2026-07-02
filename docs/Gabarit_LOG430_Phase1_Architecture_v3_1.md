@@ -609,7 +609,7 @@ Must.
 
 **État actuel dans le dépôt**
 
-La route gateway `/v1/lines/*` est préparée pour `line-service`. Le gateway peut transporter les headers applicatifs nécessaires, mais la logique complète d’activation, l’idempotence et l’intégration free5GC doivent être complétées dans `line-service`.
+La route gateway `/v1/lines/*` est configurée vers `line-service` via `LINE_SERVICE_URL=http://100.86.218.1:8080`. Le gateway peut transporter les headers applicatifs nécessaires, mais la logique complète d’activation, l’idempotence et l’intégration free5GC doivent être validées dans `line-service`.
 
 ### UC-04 — Consultation usage / factures
 
@@ -1287,7 +1287,7 @@ Machine gateway
 Tailnet / VM-LXC
   identity-service  http://100.83.57.43:8020
   order-service     http://100.108.225.1:8030
-  line-service      adresse Tailnet/LXC à renseigner, port cible 8080
+  line-service      http://100.86.218.1:8080
   catalog-service   http://100.95.65.46:8040
   customers-service http://100.99.167.126:8050
   billing-service   http://100.114.185.38:8060
@@ -1297,7 +1297,7 @@ Tailnet / VM-LXC
 ```
 
 Le mode `host` permet au conteneur gateway d’utiliser la connectivité réseau de la machine hôte, notamment vers Tailscale/Tailnet.
-Les conteneurs `customers-service`, `billing-service` et `audit-service` sont maintenant présents sur le Tailnet; leurs applications restent à déployer et à démarrer sur les ports indiqués. `line-service` est ajouté comme cible prévue pour les lignes et activations.
+Les services métier sont maintenus dans des dépôts GitHub séparés et déployés sur des VM/LXC distinctes. Les conteneurs `line-service`, `customers-service`, `billing-service` et `audit-service` sont présents sur le Tailnet; côté dépôt gateway, les URLs amont et les routes sont configurées ou préparées pour les joindre sur les ports indiqués.
 Le coeur free5GC est déployé comme voisin réseau spécialisé : il n’est pas exposé par le gateway public, mais consommé par l’adapter d’activation de `line-service` pour provisionner les informations SIM/SUPI/DNN/slice et vérifier l’attachement 5G en laboratoire.
 
 ## 7.2 API Gateway
@@ -1612,21 +1612,51 @@ Mesures réalisées via `k6 run tests/load/catalog-through-gateway.js` sur le tr
 
 La comparaison N = 1..4 valide le patron HAProxy et l'absence d'erreurs lors de l'ajout progressif d'instances. Comme la campagne garde la même charge fixe de 20 VUs avec une pause d'une seconde dans le script k6, le RPS reste mécaniquement autour de 19,4 à 19,5 req/s; ces mesures démontrent surtout la stabilité et la latence sous charge nominale, pas le seuil de saturation maximal. Pour mesurer un gain de capacité, il faudra une campagne avec montée progressive de VUs ou taux d'arrivée constant plus élevé.
 
-*Tolérance aux pannes (kill d’instance en charge) : à démontrer sur `catalog-service` avec N ≥ 2 en arrêtant une instance pendant une campagne k6.*
+### 10.6.1 Tolérance aux pannes - kill d'instance
+
+Une campagne complémentaire a été exécutée pendant 3 minutes avec 20 VUs, en arrêtant une instance `catalog-service` pendant le test. HAProxy devait retirer l'instance défaillante et continuer à router vers les instances restantes.
+
+![Kill d'instance catalogue pendant charge](captures/k6-kill-instance/c07-lb-kill-instance.png)
+
+**Figure 10.6-5 — Kill d'instance catalogue pendant charge.** Le test termine avec 3561 requêtes, 19,68 req/s, 100 % de checks réussis, 0,00 % d'erreurs HTTP, P90 19,8 ms, P95 31,26 ms et maximum 107,7 ms. Cette mesure indique que l'arrêt d'une instance n'a pas provoqué d'erreurs visibles côté client pendant la fenêtre testée.
 
 ## 10.7 Caching (on / off)
 
 | **Endpoint**                  | **P95 sans cache**    | **P95 avec cache**    | **Charge DB**         | **Gain**              |
 |-------------------------------|-----------------------|-----------------------|-----------------------|-----------------------|
-| `/v1/catalog/*` | Non mesuré | Non mesuré | Non mesurée | À mesurer |
+| `/v1/catalog/plans` | 72,82 ms | 26,69 ms | Non mesurée | -63,3 % sur P95 |
 | `/v1/billing/*` ou usage | Non mesuré | Non mesuré | Non mesurée | À mesurer |
+
+Le cache gateway a été mesuré sur l'endpoint catalogue, avec Redis local et `CACHE_SERVICES=catalog`. Les deux campagnes utilisent le même script k6, 20 VUs pendant 1 minute.
+
+![Cache OFF catalogue](captures/cache-on-off/c08-cache-off.png)
+
+**Figure 10.7-1 — Cache OFF sur `/v1/catalog/plans`.** Avec `CACHE_ENABLED=false`, la campagne produit 1186 requêtes, 19,46 req/s, 0,00 % d'erreurs HTTP, P90 44,42 ms, P95 72,82 ms et maximum 87,01 ms.
+
+![Cache ON catalogue](captures/cache-on-off/c09-cache-on.png)
+
+**Figure 10.7-2 — Cache ON sur `/v1/catalog/plans`.** Avec `CACHE_ENABLED=true`, la campagne produit 1200 requêtes, 19,80 req/s, 0,00 % d'erreurs HTTP, P90 14,04 ms, P95 26,69 ms et maximum 39,89 ms.
+
+Le cache réduit le P95 d'environ 63,3 % sur cette campagne (`72,82 ms` à `26,69 ms`) et réduit aussi la latence moyenne de 17,67 ms à 8,43 ms. La charge DB/service amont n'a pas été mesurée directement; le gain est donc exprimé sur la latence observée côté client.
 
 ## 10.8 Appels directs vs via Gateway
 
 | **Trajet**  | **P95 (ms)**          | **Erreurs**           | **Traçabilité**       |
 |-------------|-----------------------|-----------------------|-----------------------|
-| Direct      | Non mesuré | Non mesuré | Logs service amont à préciser |
-| Via Gateway | Non mesuré | Non mesuré | `/routes`, erreurs `502/503`, logs gateway à enrichir |
+| Direct      | 27,08 ms | 0,00 % | Logs service amont |
+| Via Gateway | 47,32 ms | 0,00 % | `/routes`, logs JSON gateway, `X-Trace-Id`, métriques Prometheus |
+
+La comparaison est réalisée sur le même endpoint catalogue, avec 20 VUs pendant 1 minute et cache désactivé afin de mesurer le coût du trajet réseau/applicatif plutôt que l'effet Redis.
+
+![Appel direct catalogue](captures/appel-direct/c10-direct-catalog.png)
+
+**Figure 10.8-1 — Appel direct `catalog-service`.** Le test direct produit 1200 requêtes, 19,72 req/s, 100 % de checks réussis, 0,00 % d'erreurs HTTP, P90 22,18 ms, P95 27,08 ms et maximum 56,31 ms.
+
+![Appel catalogue via gateway](captures/appel-gateway/c11-gateway-catalog.png)
+
+**Figure 10.8-2 — Appel catalogue via API Gateway.** Le test via gateway produit 1186 requêtes, 19,47 req/s, 100 % de checks réussis, 0,00 % d'erreurs HTTP, P90 39,36 ms, P95 47,32 ms et maximum 74,07 ms.
+
+Le surcoût observé du gateway au P95 est de 20,24 ms (`47,32 - 27,08`). Ce coût reste compatible avec la cible P95 ≤ 500 ms et apporte en échange un point d'entrée unique, les logs structurés, `X-Trace-Id`, les métriques Prometheus, la gestion centralisée des erreurs `404/502/503` et le cache optionnel.
 
 # 11. Risques et dette technique
 
@@ -2070,12 +2100,28 @@ Durée : 12 à 15 minutes de présentation + questions. Objectif : démontrer qu
 | Documentation Arc42 modulaire | `docs/arc42/*.md` |
 | ADR acceptés observabilité et Tailscale | `docs/adr/0005-observability-lxc.md`, `docs/adr/0006-utilisation-tailscale.md` |
 
+## F.1.1 Dépôts GitHub des services métier
+
+Les services métier sont livrés dans des dépôts GitHub séparés. Le présent dépôt
+documente le gateway, le routage, les mesures d'intégration et les preuves de
+connexion vers ces services.
+
+| **Service** | **Dépôt GitHub** |
+|-------------|------------------|
+| `identity-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-identity-service> |
+| `order-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-order-service> |
+| `catalog-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-catalog-service> |
+| `line-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-line-service> |
+| `customers-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-customers-service> |
+| `billing-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-billing-service> |
+| `audit-service` | <https://github.com/Amjad-Lekhdar/LOG430-cantelcox-audit-service> |
+
 ## F.2 Reste à faire
 
 | **Priorité** | **Travail restant** |
 |--------------|---------------------|
 | Haute | Compléter les ADR 0001 à 0004 avec statut, contexte, décision, conséquences et conformité |
-| Haute | Implémenter ou brancher les services manquants `line-service`, `customers-service`, `billing-service`, `audit-service` |
+| Haute | Raccorder et démontrer depuis ce dépôt les services hébergés dans des dépôts GitHub séparés : `line-service`, `customers-service`, `billing-service`, `audit-service` |
 | Haute | Décrire et tester au moins 5 UC Must bout-en-bout via le gateway |
 | Haute | Normaliser le format d’erreur JSON inter-services avec `traceId` |
 | Haute | Ajouter les tests automatisés gateway et E2E; viser ≥ 80 % sur le domaine critique |

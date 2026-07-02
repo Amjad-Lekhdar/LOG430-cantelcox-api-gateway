@@ -47,7 +47,7 @@ La justification complète de ce choix est documentée dans [ADR 0006](../adr/00
 | --- | --- |
 | `identity-service` | `100.83.57.43:8020` |
 | `order-service` | `100.108.225.1:8030` |
-| `line-service` | Adresse Tailnet/LXC à renseigner, port cible `8080` |
+| `line-service` | `100.86.218.1:8080` |
 | `catalog-service` | `100.95.65.46:8040` |
 | `customers-service` | `100.99.167.126:8050` |
 | `billing-service` | `100.114.185.38:8060` |
